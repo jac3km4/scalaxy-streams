@@ -6,8 +6,7 @@ private[streams] trait ListBufferSinks extends BuilderSinks {
   val global: scala.reflect.api.Universe
   import global._
 
-  case object ListBufferSink extends BuilderSink
-  {
+  case object ListBufferSink extends BuilderSink {
     override def describe = Some("List")
 
     override def usesSizeHint = false
@@ -16,7 +15,7 @@ private[streams] trait ListBufferSinks extends BuilderSinks {
 
     lazy val ListBufferModule =
       rootMirror.staticModule("scala.collection.mutable.ListBuffer")
-    
+
     // lazy val ListModule =
     //   rootMirror.staticModule("scala.collection.immutable.List")
 

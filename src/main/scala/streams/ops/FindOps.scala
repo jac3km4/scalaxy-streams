@@ -3,14 +3,13 @@ package scalaxy.streams
 private[streams] trait FindOps
     extends ClosureStreamOps
     with Strippers
-    with OptionSinks
-{
+    with OptionSinks {
   val global: scala.reflect.api.Universe
   import global._
 
   object SomeFindOp extends StreamOpExtractor {
     override def unapply(tree: Tree) = tree match {
-      case q"$target.find(${Closure(closure)})" =>
+      case q"$target.find(${ Closure(closure) })" =>
         ExtractedStreamOp(target, FindOp(closure))
 
       case _ =>
@@ -18,8 +17,7 @@ private[streams] trait FindOps
     }
   }
   case class FindOp(closure: Function)
-      extends ClosureStreamOp
-  {
+      extends ClosureStreamOp {
     override def describe = Some("find")
 
     override def sinkOption = Some(OptionSink)
@@ -30,27 +28,30 @@ private[streams] trait FindOps
 
     override def isMapLike = false
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input.typed
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        import input.typed
 
-      val (replacedStatements, outputVars) =
-        transformationClosure.replaceClosureBody(
-          input,
-          outputNeeds + RootTuploidPath)
+        val (replacedStatements, outputVars) =
+          transformationClosure.replaceClosureBody(
+            input,
+            outputNeeds + RootTuploidPath
+          )
 
-      var test = outputVars.alias.get
+        var test = outputVars.alias.get
 
-      var sub = emitSub(input.copy(outputSize = None), nextOps)
-      sub.copy(body = List(q"""
+        var sub = emitSub(input.copy(outputSize = None), nextOps)
+        sub.copy(body = List(q"""
         ..$replacedStatements;
         if ($test) {
           ..${sub.body};
           ${input.loopInterruptor.get.duplicate} = false;
         }
       """))
-    }
+      }
   }
 }

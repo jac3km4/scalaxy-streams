@@ -16,17 +16,18 @@ trait Blacklists extends Reporters {
       .getOrElse(System.getProperty(SCALAXY_STREAMS_SKIP_PROPERTY_NAME, ""))
       .split(",")
       .map(_.split(":")) map {
-    case Array(name, symbol, lineStr) =>
-      (name, Some(symbol), Some(lineStr.toInt))
-    case Array(name, symbolOrLine) =>
-      try {
-        (name, None, Some(symbolOrLine.toInt))
-      } catch { case ex: Throwable =>
-        (name, Some(symbolOrLine), None)
+        case Array(name, symbol, lineStr) =>
+          (name, Some(symbol), Some(lineStr.toInt))
+        case Array(name, symbolOrLine) =>
+          try {
+            (name, None, Some(symbolOrLine.toInt))
+          } catch {
+            case ex: Throwable =>
+              (name, Some(symbolOrLine), None)
+          }
+        case Array(name) =>
+          (name, None, None)
       }
-    case Array(name) =>
-      (name, None, None)
-  }
 
   @tailrec
   private[this] def enclosingSymbol(sym: Symbol): Option[Symbol] = {
@@ -36,8 +37,8 @@ trait Blacklists extends Reporters {
     if (sym == NoSymbol) {
       None
     } else if (!sym.isSynthetic &&
-               sym.isTerm && isNamed(sym.asTerm) ||
-               sym.isType && sym.asType.isClass) {
+      sym.isTerm && isNamed(sym.asTerm) ||
+      sym.isType && sym.asType.isClass) {
       Some(sym)
     } else {
       enclosingSymbol(sym.owner)
@@ -52,7 +53,7 @@ trait Blacklists extends Reporters {
     patterns.exists({
       case (name, symbolOpt, lineOpt) if name == fileName =>
         symbolOpt.forall(s => enclosingSymbolName.contains(s)) &&
-        lineOpt.forall(_ == line)
+          lineOpt.forall(_ == line)
 
       case _ =>
         false

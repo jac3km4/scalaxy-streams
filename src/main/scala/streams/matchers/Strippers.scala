@@ -1,7 +1,6 @@
 package scalaxy.streams
 
-private[streams] trait Strippers
-{
+private[streams] trait Strippers {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -33,7 +32,7 @@ private[streams] trait Strippers
 
   private[streams] object Option2Iterable {
     def unapply(tree: Tree): Option[Tree] = Option(tree) collect {
-      case q"$target.option2Iterable[${_}]($value)" if target.symbol == OptionModule =>
+      case q"$target.option2Iterable[${ _ }]($value)" if target.symbol == OptionModule =>
         value
     }
   }

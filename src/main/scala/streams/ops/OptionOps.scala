@@ -3,8 +3,7 @@ package scalaxy.streams
 private[streams] trait OptionOps
     extends UnusableSinks
     with OptionSinks
-    with Streams
-{
+    with Streams {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -15,10 +14,10 @@ private[streams] trait OptionOps
           throw new NoSuchElementException("None.get")
         """))
 
-      case q"$target.orNull[${_}](${_})" =>
+      case q"$target.orNull[${ _ }](${ _ })" =>
         ExtractedStreamOp(target, OptionGetOrElseOp("orNull", lambdaCount = 0, q"null"))
 
-      case q"$target.getOrElse[${_}]($v)" =>
+      case q"$target.getOrElse[${ _ }]($v)" =>
         ExtractedStreamOp(target, OptionGetOrElseOp("getOrElse", lambdaCount = 1, v))
 
       case q"$target.orElse[$tpt]($orElseValue)" =>
@@ -29,9 +28,11 @@ private[streams] trait OptionOps
     }
   }
 
-  case class OptionGetOrElseOp(name: String,
-                               override val lambdaCount: Int,
-                               defaultValue: Tree) extends StreamOp {
+  case class OptionGetOrElseOp(
+    name: String,
+      override val lambdaCount: Int,
+      defaultValue: Tree
+  ) extends StreamOp {
     override def sinkOption = Some(ScalarSink)
     override def canAlterSize = true
     override def describe = Some(name)
@@ -40,17 +41,17 @@ private[streams] trait OptionOps
       Set(RootTuploidPath) // TODO: refine this.
 
     override def emit(input: StreamInput, outputNeeds: OutputNeeds, nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input._
+      {
+        import input._
 
-      // TODO: remove this to unlock flatMap
-      val List((ScalarSink, _)) = nextOps
+        // TODO: remove this to unlock flatMap
+        val List((ScalarSink, _)) = nextOps
 
-      val value = fresh("value")
-      val nonEmpty = fresh("nonEmpty")
-      require(input.vars.alias.nonEmpty, s"input.vars = $input.vars")
+        val value = fresh("value")
+        val nonEmpty = fresh("nonEmpty")
+        require(input.vars.alias.nonEmpty, s"input.vars = $input.vars")
 
-      val Block(List(
+        val Block(List(
           valueDef,
           nonEmptyVarDef,
           assignment), result) = typed(q"""
@@ -63,25 +64,24 @@ private[streams] trait OptionOps
         if ($nonEmpty) $value else $defaultValue
       """)
 
-      StreamOutput(
-        prelude = List(valueDef, nonEmptyVarDef),
-        body = List(assignment),
-        ending = List(result))
-    }
+        StreamOutput(
+          prelude = List(valueDef, nonEmptyVarDef),
+          body = List(assignment),
+          ending = List(result)
+        )
+      }
   }
 
-
-
   case class OptionOrElseOp(componentTpe: Type, orElseValue: Tree)
-      extends StreamOp
-  {
+      extends StreamOp {
     val nestedStream: Option[Stream] = Option(orElseValue) collect {
-      case SomeStream(stream) =>//if stream.sink.canBeElided =>
+      case SomeStream(stream) => //if stream.sink.canBeElided =>
         stream
     }
 
     override def describe = Some(
-      "orElse" + nestedStream.map("(" + _.describe(describeSink = false) + ")").getOrElse(""))
+      "orElse" + nestedStream.map("(" + _.describe(describeSink = false) + ")").getOrElse("")
+    )
 
     override def lambdaCount = 1 + nestedStream.map(_.lambdaCount).getOrElse(0)
 
@@ -94,7 +94,7 @@ private[streams] trait OptionOps
         getOrElse(super.closureSideEffectss)
 
     // Do not leak the interruptibility out of a flatMap.
-    override def canInterruptLoop = false//nestedStream.map(_.ops.exists(_.canInterruptLoop)).getOrElse(false)
+    override def canInterruptLoop = false //nestedStream.map(_.ops.exists(_.canInterruptLoop)).getOrElse(false)
 
     override def canAlterSize = true
 
@@ -104,21 +104,23 @@ private[streams] trait OptionOps
     override def transmitOutputNeedsBackwards(paths: Set[TuploidPath]) =
       Set(RootTuploidPath) // TODO: refine this.
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input.{ fresh, transform, typed, currentOwner }
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        import input.{ fresh, transform, typed, currentOwner }
 
-      nestedStream match {
-        case Some(stream) =>
+        nestedStream match {
+          case Some(stream) =>
 
-          val value = fresh("value")
-          val nonEmpty = fresh("nonEmpty")
-          require(input.vars.alias.nonEmpty, s"input.vars = $input.vars")
+            val value = fresh("value")
+            val nonEmpty = fresh("nonEmpty")
+            require(input.vars.alias.nonEmpty, s"input.vars = $input.vars")
 
-          // val tpe = componentTpe.getOrElse(input.vars.tpe)
-          val Block(List(
+            // val tpe = componentTpe.getOrElse(input.vars.tpe)
+            val Block(List(
               valueVarDef,
               valueVarRef,
               nonEmptyVarDef), nonEmptyVarRef) = typed(q"""
@@ -128,45 +130,48 @@ private[streams] trait OptionOps
             $nonEmpty
           """)
 
-          val stagedSink = StagedOptionSink(valueVarDef.symbol, nonEmptyVarDef.symbol)
+            val stagedSink = StagedOptionSink(valueVarDef.symbol, nonEmptyVarDef.symbol)
 
-          // Expand the orElse value's nested stream.
-          val subNested = stream.copy(sink = stagedSink).emitStream(
-            fresh,
-            transform,
-            currentOwner = currentOwner,
-            typed = typed,
-            loopInterruptor = input.loopInterruptor)//.map(replacer)
+            // Expand the orElse value's nested stream.
+            val subNested = stream.copy(sink = stagedSink).emitStream(
+              fresh,
+              transform,
+              currentOwner = currentOwner,
+              typed = typed,
+              loopInterruptor = input.loopInterruptor
+            ) //.map(replacer)
 
-          // The rest of the outer stream.
-          val post = emitSub(
-            input.copy(
-              vars = ScalarValue(componentTpe, alias = Some(valueVarRef))),
-            nextOps)
+            // The rest of the outer stream.
+            val post = emitSub(
+              input.copy(
+                vars = ScalarValue(componentTpe, alias = Some(valueVarRef))
+              ),
+              nextOps
+            )
 
-          // Compose the two expansions.
-          StreamOutput(
-            prelude = List(valueVarDef, nonEmptyVarDef),
-            body = List(typed(q"""
+            // Compose the two expansions.
+            StreamOutput(
+              prelude = List(valueVarDef, nonEmptyVarDef),
+              body = List(typed(q"""
               $nonEmptyVarRef = true;
               $valueVarRef = ${input.vars.alias.get};
             """)),
-            afterBody = List(typed(q"""
+              afterBody = List(typed(q"""
               if (!$nonEmptyVarRef) {
                 ..${subNested.flatten};
               }
             """)),
-            // afterBody = List(typed(q"""
-            //   ..${subNested.prelude}; // TODO: move this inside if below?
-            //   if (!$nonEmptyVarRef) {
-            //     ..${subNested.flatten};
-            //     ..${subNested.beforeBody};
-            //     ..${subNested.body};
-            //     ..${subNested.afterBody}
-            //   }
-            //   ..${subNested.ending} // TODO: move this inside if above?
-            // """)),
-            ending = List(typed(q"""
+              // afterBody = List(typed(q"""
+              //   ..${subNested.prelude}; // TODO: move this inside if below?
+              //   if (!$nonEmptyVarRef) {
+              //     ..${subNested.flatten};
+              //     ..${subNested.beforeBody};
+              //     ..${subNested.body};
+              //     ..${subNested.afterBody}
+              //   }
+              //   ..${subNested.ending} // TODO: move this inside if above?
+              // """)),
+              ending = List(typed(q"""
               ..${post.prelude};
               if ($nonEmptyVarRef) {
                 ..${post.beforeBody};
@@ -175,10 +180,10 @@ private[streams] trait OptionOps
               }
               ..${post.ending}
             """))
-          )
+            )
 
-        case _ =>
-          ???
+          case _ =>
+            ???
           // val (replacedStatements, outputVars) =
           //   transformationClosure.replaceClosureBody(
           //     input.copy(
@@ -204,7 +209,7 @@ private[streams] trait OptionOps
           //     ..${sub.body};
           //   })
           // """)))
+        }
       }
-    }
   }
 }

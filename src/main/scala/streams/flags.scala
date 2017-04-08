@@ -5,14 +5,13 @@ private[streams] object LogLevel extends Enumeration {
   val Quiet, Normal, Verbose, VeryVerbose, Debug = Value
 }
 
-object flags
-{
+object flags {
   private[this] def isEnv(propName: String, envName: String, enabled: Boolean = true): Boolean = {
     var env = System.getenv("SCALAXY_STREAMS_" + envName)
     var prop = System.getProperty("scalaxy.streams." + propName)
 
     env == (if (enabled) "1" else "0") ||
-    prop == enabled.toString()
+      prop == enabled.toString()
   }
 
   import LogLevel._

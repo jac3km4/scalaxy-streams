@@ -6,8 +6,7 @@ private[streams] trait StreamSinks
     with IteratorSinks
     with ListBufferSinks
     with SetBuilderSinks
-    with VectorBuilderSinks
-{
+    with VectorBuilderSinks {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -19,10 +18,10 @@ private[streams] trait StreamSinks
       case q"$target.toIterator" =>
         (target, IteratorSink)
 
-      case q"$target.toArray[${_}](${_})" =>
+      case q"$target.toArray[${ _ }](${ _ })" =>
         (target, ArrayBuilderSink)
 
-      case q"$target.toSet[${_}]" =>
+      case q"$target.toSet[${ _ }]" =>
         (target, SetBuilderSink)
 
       case q"$target.toVector" =>

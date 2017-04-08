@@ -1,21 +1,19 @@
 package scalaxy.streams
 
 private[streams] trait StreamInterruptors
-  extends StreamComponents
-  with CoerceOps
-{
+    extends StreamComponents
+    with CoerceOps {
   val global: scala.reflect.api.Universe
   import global._
 
-  class StreamInterruptor(input: StreamInput, nextOps: OpsAndOutputNeeds)
-  {
+  class StreamInterruptor(input: StreamInput, nextOps: OpsAndOutputNeeds) {
     import input.{ fresh, typed }
 
     private[this] val continue = fresh("continue")
 
     private[this] val Block(List(
-        continueVarDef),
-        continueVarRef) = typed(q"""
+      continueVarDef),
+      continueVarRef) = typed(q"""
       private[this] var $continue = true;
       $continue
     """)

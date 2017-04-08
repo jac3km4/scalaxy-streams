@@ -2,8 +2,7 @@ package scalaxy.streams
 
 private[streams] trait IteratorStreamSources
     extends IteratorSinks
-    with StreamInterruptors
-{
+    with StreamInterruptors {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -16,9 +15,9 @@ private[streams] trait IteratorStreamSources
   }
 
   case class IteratorStreamSource(
-      iterator: Tree)
-    extends StreamSource
-  {
+    iterator: Tree
+  )
+      extends StreamSource {
     override def describe = Some("Iterator")
     override def sinkOption = Some(IteratorSink)
 
@@ -26,17 +25,19 @@ private[streams] trait IteratorStreamSources
 
     override def subTrees = List(iterator)
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input.{ fresh, transform, typed }
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        import input.{ fresh, transform, typed }
 
-      val itVal = fresh("it")
-      val itemVal = fresh("item")
+        val itVal = fresh("it")
+        val itemVal = fresh("item")
 
-      // Early typing / symbolization.
-      val Block(List(
+        // Early typing / symbolization.
+        val Block(List(
           itValDef,
           itHasNext,
           itemValDef),
@@ -46,23 +47,26 @@ private[streams] trait IteratorStreamSources
         private[this] val $itemVal = $itVal.next;
         $itemVal
       """)
-      val TuploidPathsExtractionDecls(extractionCode, outputVars, coercionSuccessVarDefRef) =
-        createTuploidPathsExtractionDecls(
-          itemValRef.tpe, itemValRef, outputNeeds, fresh, typed,
-          newCoercionSuccessVarDefRef(nextOps, fresh, typed))
+        val TuploidPathsExtractionDecls(extractionCode, outputVars, coercionSuccessVarDefRef) =
+          createTuploidPathsExtractionDecls(
+            itemValRef.tpe, itemValRef, outputNeeds, fresh, typed,
+            newCoercionSuccessVarDefRef(nextOps, fresh, typed)
+          )
 
-      val interruptor = new StreamInterruptor(input, nextOps)
+        val interruptor = new StreamInterruptor(input, nextOps)
 
-      val sub = emitSub(
-        input.copy(
-          vars = outputVars,
-          loopInterruptor = interruptor.loopInterruptor,
-          outputSize = None),
-        nextOps,
-        coercionSuccessVarDefRef._2)
-      sub.copy(
-        beforeBody = Nil,
-        body = List(typed(q"""
+        val sub = emitSub(
+          input.copy(
+            vars = outputVars,
+            loopInterruptor = interruptor.loopInterruptor,
+            outputSize = None
+          ),
+          nextOps,
+          coercionSuccessVarDefRef._2
+        )
+        sub.copy(
+          beforeBody = Nil,
+          body = List(typed(q"""
           $itValDef;
           ..${interruptor.defs}
           ..${sub.beforeBody};
@@ -73,8 +77,8 @@ private[streams] trait IteratorStreamSources
           }
           ..${sub.afterBody}
         """)),
-        afterBody = Nil
-      )
-    }
+          afterBody = Nil
+        )
+      }
   }
 }

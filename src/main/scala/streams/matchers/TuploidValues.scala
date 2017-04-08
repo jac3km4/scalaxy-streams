@@ -1,8 +1,7 @@
 package scalaxy.streams
 import scala.collection.breakOut
 
-trait TuploidValues extends Utils with Tuploids
-{
+trait TuploidValues extends Utils with Tuploids {
   val global: scala.reflect.api.Universe
   import global._
   import definitions._
@@ -16,7 +15,6 @@ trait TuploidValues extends Utils with Tuploids
   object TupleType {
     def unapply(tpe: Type): Boolean = isTupleType(tpe)
   }
-
 
   private[this] lazy val primTypes =
     Set(IntTpe, LongTpe, ShortTpe, CharTpe, BooleanTpe, DoubleTpe, FloatTpe, ByteTpe)
@@ -65,10 +63,10 @@ trait TuploidValues extends Utils with Tuploids
   object TupleCreation {
     def unapply(tree: Tree): Option[List[Tree]] =
       Option(tree).filter(tree => TupleType.unapply(tree.tpe)) collect {
-        case q"$tup[..${_}](..$subs)" if isTupleSymbol(tup.symbol) =>
+        case q"$tup[..${ _ }](..$subs)" if isTupleSymbol(tup.symbol) =>
           subs
 
-        case q"$tup.apply[..${_}](..$subs)" if isTupleSymbol(tup.symbol) =>
+        case q"$tup.apply[..${ _ }](..$subs)" if isTupleSymbol(tup.symbol) =>
           subs
       }
   }
@@ -79,7 +77,8 @@ trait TuploidValues extends Utils with Tuploids
   case class TuploidPathsExtractionDecls(
     statements: List[Tree],
     value: TuploidValue[Tree],
-    coercionSuccessVarDefRef: (Option[Tree], Option[Tree]))
+    coercionSuccessVarDefRef: (Option[Tree], Option[Tree])
+  )
 
   def createTuploidPathsExtractionDecls(
     tpe: Type,
@@ -87,38 +86,36 @@ trait TuploidValues extends Utils with Tuploids
     paths: Set[TuploidPath],
     fresh: String => TermName,
     typed: Tree => Tree,
-    coercionSuccessVarDefRef: (Option[Tree], Option[Tree]) = (None, None))
-      : TuploidPathsExtractionDecls =
-  {
-    var coerces = false
-    def aux(tpe: Type, target: Tree, paths: Set[TuploidPath])
-        : (List[Tree], List[Tree], TuploidValue[Tree]) = {
-      val headToSubs = for ((head, pathsWithSameHead) <- paths.filter(_.nonEmpty).groupBy(_.head)) yield {
-        val subPaths = pathsWithSameHead.map(_.tail)
-        val selector = "_" + (head + 1)
-        val name = fresh(selector)
+    coercionSuccessVarDefRef: (Option[Tree], Option[Tree]) = (None, None)
+  ): TuploidPathsExtractionDecls =
+    {
+      var coerces = false
+      def aux(tpe: Type, target: Tree, paths: Set[TuploidPath]): (List[Tree], List[Tree], TuploidValue[Tree]) = {
+        val headToSubs = for ((head, pathsWithSameHead) <- paths.filter(_.nonEmpty).groupBy(_.head)) yield {
+          val subPaths = pathsWithSameHead.map(_.tail)
+          val selector = "_" + (head + 1)
+          val name = fresh(selector)
 
-        val rhs = typed(q"$target.${TermName(selector)}")
-        val subTpe = rhs.tpe
-        val Block(List(decl, assign), ref) = typed(q"""
+          val rhs = typed(q"$target.${TermName(selector)}")
+          val subTpe = rhs.tpe
+          val Block(List(decl, assign), ref) = typed(q"""
           ${newVar(name, subTpe)};
           $name = $rhs;
           $name
         """)
 
-        val (subDecls, subAssigns, subValue) =
-          aux(rhs.tpe, ref, subPaths)
+          val (subDecls, subAssigns, subValue) =
+            aux(rhs.tpe, ref, subPaths)
 
-        (decl :: subDecls, assign :: subAssigns, head -> subValue)
-      }
+          (decl :: subDecls, assign :: subAssigns, head -> subValue)
+        }
 
-      val subDecls: List[Tree] = headToSubs.flatMap(_._1).toList
-      val subAssigns: List[Tree] = headToSubs.flatMap(_._2).toList
-      val assigns: List[Tree] = coercionSuccessVarDefRef match {
-        case (Some(successVarDef), Some(successVarRef))
-            if subAssigns != Nil =>
-          coerces = true
-          val Block(statements, _) = typed(q"""
+        val subDecls: List[Tree] = headToSubs.flatMap(_._1).toList
+        val subAssigns: List[Tree] = headToSubs.flatMap(_._2).toList
+        val assigns: List[Tree] = coercionSuccessVarDefRef match {
+          case (Some(successVarDef), Some(successVarRef)) if subAssigns != Nil =>
+            coerces = true
+            val Block(statements, _) = typed(q"""
             $successVarDef;
             if ((${target.duplicate} ne null) &&
                 ${successVarRef.duplicate}) {
@@ -129,57 +126,58 @@ trait TuploidValues extends Utils with Tuploids
             null
           """)
 
-          statements
+            statements
 
-        case _ =>
-          subAssigns
+          case _ =>
+            subAssigns
+        }
+
+        (
+          subDecls,
+          assigns,
+          TupleValue[Tree](
+            tpe = tpe, //target.tpe,
+            values = headToSubs.map(_._3).toMap,
+            alias = target.asOption,
+            couldBeNull = false
+          )
+        )
       }
 
-      (
-        subDecls,
-        assigns,
-        TupleValue[Tree](
-          tpe = tpe,//target.tpe,
-          values = headToSubs.map(_._3).toMap,
-          alias = target.asOption,
-          couldBeNull = false)
-      )
-    }
+      val (defs, assigns, value) = aux(tpe, target, paths)
 
-    val (defs, assigns, value) = aux(tpe, target, paths)
-
-    val statements =
-      if (defs.isEmpty && assigns.isEmpty)
-        Nil
-      else {
-        val Block(list, _) = typed(q"""
+      val statements =
+        if (defs.isEmpty && assigns.isEmpty)
+          Nil
+        else {
+          val Block(list, _) = typed(q"""
           ..${defs ++ assigns};
           ""
         """)
-        list
-      }
+          list
+        }
 
-    val ret = TuploidPathsExtractionDecls(
-      statements = statements,
-      value = value,
-      if (coerces) coercionSuccessVarDefRef else (None, None))
+      val ret = TuploidPathsExtractionDecls(
+        statements = statements,
+        value = value,
+        if (coerces) coercionSuccessVarDefRef else (None, None)
+      )
 
-    // println(s"""
-    // createTuploidPathsExtractionDecls
-    //   target: $target
-    //   paths: $paths
-    //   ret: $ret
-    //   defs: $defs
-    //   assigns: $assigns
-    //   statements: $statements
-    //   coercionSuccessVarDefRef: $coercionSuccessVarDefRef
-    // """)
-    ret
-  }
+      // println(s"""
+      // createTuploidPathsExtractionDecls
+      //   target: $target
+      //   paths: $paths
+      //   ret: $ret
+      //   defs: $defs
+      //   assigns: $assigns
+      //   statements: $statements
+      //   coercionSuccessVarDefRef: $coercionSuccessVarDefRef
+      // """)
+      ret
+    }
 
   /** A tuploid value is either a scalar or a tuple of tuploid values. */
-  sealed trait TuploidValue[A]
-  {
+  sealed trait TuploidValue[A] {
     def collectSet[B](pf: PartialFunction[(TuploidPath, TuploidValue[A]), B]): Set[B] =
       collect(pf).toSet
 
@@ -225,8 +223,7 @@ trait TuploidValues extends Utils with Tuploids
   }
 
   case class ScalarValue[A](tpe: Type, value: Option[Tree] = None, alias: Option[A] = None)
-      extends TuploidValue[A]
-  {
+      extends TuploidValue[A] {
     assert((tpe + "") != "Null" && tpe != NoType)
     override def find(target: A) =
       alias.filter(_ == target).map(_ => RootTuploidPath)
@@ -243,9 +240,9 @@ trait TuploidValues extends Utils with Tuploids
     tpe: Type,
     values: Map[Int, TuploidValue[A]],
     alias: Option[A] = None,
-    couldBeNull: Boolean = true)
-      extends TuploidValue[A]
-  {
+    couldBeNull: Boolean = true
+  )
+      extends TuploidValue[A] {
     assert((tpe + "") != "Null" && tpe != NoType, "Created tuple value with tpe " + tpe)
     override def find(target: A) = {
       if (alias.exists(_ == target))
@@ -273,7 +270,7 @@ trait TuploidValues extends Utils with Tuploids
 
       case i :: subPath =>
         i < values.size &&
-        values(i).exists(subPath)
+          values(i).exists(subPath)
     }
   }
 
@@ -309,8 +306,7 @@ trait TuploidValues extends Utils with Tuploids
     }
   }
 
-  object TuploidValue
-  {
+  object TuploidValue {
     def extractSymbols(tree: Tree, alias: Option[Symbol] = None, isInsideCasePattern: Boolean = false): TuploidValue[Symbol] = {
       def sub(subs: List[Tree]): Map[Int, TuploidValue[Symbol]] =
         (subs.zipWithIndex.map {
@@ -331,8 +327,7 @@ trait TuploidValues extends Utils with Tuploids
         case Ident(n) if tree.symbol.name == n =>
           ScalarValue(tree.tpe, alias = tree.symbol.asOption)
 
-        case Apply(MethodTypeTree(_, restpe @ TupleType()), binds)
-            if binds.forall({ case Bind(_, _) => true case _ => false }) =>
+        case Apply(MethodTypeTree(_, restpe @ TupleType()), binds) if binds.forall({ case Bind(_, _) => true case _ => false }) =>
           val values = for ((bind: Bind, i) <- binds.zipWithIndex) yield {
             i -> extractSymbolsFromBind(bind)
           }
@@ -396,12 +391,14 @@ trait TuploidValues extends Utils with Tuploids
           case cq"($tuple(..$binds)) => $body" if TupleType.unapply(caseDef.pat.tpe) =>
             TupleValue(
               tpe = caseDef.pat.tpe,
-              values = sub(binds), alias = None) -> body
+              values = sub(binds), alias = None
+            ) -> body
 
           case cq"($alias @ $tuple(..$binds)) => $body" if TupleType.unapply(caseDef.pat.tpe) =>
             TupleValue(
               tpe = caseDef.pat.tpe,
-              values = sub(binds), alias = caseDef.pat.symbol.asOption) -> body
+              values = sub(binds), alias = caseDef.pat.symbol.asOption
+            ) -> body
         }
       }
     }

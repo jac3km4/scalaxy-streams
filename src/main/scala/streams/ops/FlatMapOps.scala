@@ -4,8 +4,7 @@ private[streams] trait FlatMapOps
     extends ClosureStreamOps
     with CanBuildFromSinks
     with Streams
-    with Strippers
-{
+    with Strippers {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -13,11 +12,11 @@ private[streams] trait FlatMapOps
 
   object SomeFlatMapOp extends StreamOpExtractor {
     override def unapply(tree: Tree) = tree match {
-      case q"$target.flatMap[$tpt, ${_}](${Closure(closure)})($cbf)" =>
+      case q"$target.flatMap[$tpt, ${ _ }](${ Closure(closure) })($cbf)" =>
         ExtractedStreamOp(target, FlatMapOp(tpt.tpe, closure, Some(cbf)))
 
       // Option.flatMap doesn't take a CanBuildFrom.
-      case q"$target.flatMap[$tpt](${Closure(closure)})" =>
+      case q"$target.flatMap[$tpt](${ Closure(closure) })" =>
         ExtractedStreamOp(target, FlatMapOp(tpt.tpe, closure, None))
 
       case _ =>
@@ -26,8 +25,7 @@ private[streams] trait FlatMapOps
   }
 
   case class FlatMapOp(tpe: Type, closure: Function, canBuildFrom: Option[Tree])
-      extends ClosureStreamOp
-  {
+      extends ClosureStreamOp {
     override def stripBody(tree: Tree) = stripOption2Iterable(tree)
 
     val nestedStream: Option[Stream] = q"($param) => $body" match {
@@ -44,7 +42,8 @@ private[streams] trait FlatMapOps
     }
 
     override def describe = Some(
-      "flatMap" + nestedStream.map("(" + _.describe(describeSink = false) + ")").getOrElse(""))
+      "flatMap" + nestedStream.map("(" + _.describe(describeSink = false) + ")").getOrElse("")
+    )
 
     override def lambdaCount = 1 + nestedStream.map(_.lambdaCount).getOrElse(0)
 
@@ -59,7 +58,7 @@ private[streams] trait FlatMapOps
         getOrElse(super.closureSideEffectss)
 
     // Do not leak the interruptibility out of a flatMap.
-    override def canInterruptLoop = false//nestedStream.map(_.ops.exists(_.canInterruptLoop)).getOrElse(false)
+    override def canInterruptLoop = false //nestedStream.map(_.ops.exists(_.canInterruptLoop)).getOrElse(false)
 
     override def canAlterSize = true
 
@@ -89,66 +88,73 @@ private[streams] trait FlatMapOps
 
     override val sinkOption = canBuildFrom.map(CanBuildFromSink(_))
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input.{ fresh, transform, typed, currentOwner }
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        import input.{ fresh, transform, typed, currentOwner }
 
-      nestedStream match {
-        case Some(stream) =>
-          val replacer = getReplacer(transformationClosure.inputs, input.vars)
-          val subTransformer = new Transformer {
-            override def transform(tree: Tree) = {
-              if (tree.symbol == param.symbol) {
-                input.vars.alias.get.duplicate
-              } else {
-                super.transform(tree)
+        nestedStream match {
+          case Some(stream) =>
+            val replacer = getReplacer(transformationClosure.inputs, input.vars)
+            val subTransformer = new Transformer {
+              override def transform(tree: Tree) = {
+                if (tree.symbol == param.symbol) {
+                  input.vars.alias.get.duplicate
+                } else {
+                  super.transform(tree)
+                }
               }
             }
-          }
-          val subTransform = (tree: Tree) => subTransformer.transform(transform(tree))
+            val subTransform = (tree: Tree) => subTransformer.transform(transform(tree))
 
-          val modifiedStream = {
-            val (outerSink: StreamSink) :: outerOpsRev = nextOps.map(_._1).reverse
-            val outerOps = outerOpsRev.reverse
+            val modifiedStream = {
+              val (outerSink: StreamSink) :: outerOpsRev = nextOps.map(_._1).reverse
+              val outerOps = outerOpsRev.reverse
 
-            stream.copy(ops = stream.ops ++ outerOps, sink = outerSink)
-          }
+              stream.copy(ops = stream.ops ++ outerOps, sink = outerSink)
+            }
 
-          modifiedStream.emitStream(
-            fresh, subTransform,
-            currentOwner = currentOwner,
-            typed = typed,
-            loopInterruptor = input.loopInterruptor).map(replacer)
+            modifiedStream.emitStream(
+              fresh, subTransform,
+              currentOwner = currentOwner,
+              typed = typed,
+              loopInterruptor = input.loopInterruptor
+            ).map(replacer)
 
-        case _ =>
-          val (replacedStatements, outputVars) =
-            transformationClosure.replaceClosureBody(
-              input.copy(
-                outputSize = None,
-                index = None),
-              outputNeeds)
+          case _ =>
+            val (replacedStatements, outputVars) =
+              transformationClosure.replaceClosureBody(
+                input.copy(
+                  outputSize = None,
+                  index = None
+                ),
+                outputNeeds
+              )
 
-          val itemVal = fresh("item")
-          val Function(List(itemValDef @ ValDef(_, _, _, _)), itemValRef @ Ident(_)) = typed(q"""
+            val itemVal = fresh("item")
+            val Function(List(itemValDef @ ValDef(_, _, _, _)), itemValRef @ Ident(_)) = typed(q"""
             ($itemVal: $tpe) => $itemVal
           """)
 
-          val sub = emitSub(
-            input.copy(
-              vars = ScalarValue(tpe, alias = Some(itemValRef)),
-              outputSize = None,
-              index = None),
-            nextOps)
-          sub.copy(body = List(typed(q"""
+            val sub = emitSub(
+              input.copy(
+                vars = ScalarValue(tpe, alias = Some(itemValRef)),
+                outputSize = None,
+                index = None
+              ),
+              nextOps
+            )
+            sub.copy(body = List(typed(q"""
             ..$replacedStatements;
             // TODO: plug that lambda's symbol as the new owner of sub.body's decls.
             ${outputVars.alias.get}.foreach(($itemValDef) => {
               ..${sub.body};
             })
           """)))
+        }
       }
-    }
   }
 }

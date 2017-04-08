@@ -22,10 +22,11 @@ sealed trait OptimizationStrategy {
 }
 
 private[streams] abstract class OptimizationStrategyImpl(
-    override val name: String,
-    override val safety: SafetyCriteria,
-    override val speedup: SpeedupCriteria)
-  extends OptimizationStrategy
+  override val name: String,
+  override val safety: SafetyCriteria,
+  override val speedup: SpeedupCriteria
+)
+    extends OptimizationStrategy
 
 /**
  * Example:
@@ -36,47 +37,61 @@ object strategy {
   implicit case object none extends OptimizationStrategyImpl(
     name = "none",
     safety = SafetyCriteria.Safe,
-    speedup = SpeedupCriteria.Never)
+    speedup = SpeedupCriteria.Never
+  )
 
-  /** Performs optimizations that don't alter any Scala semantics, using strict
-   * side-effect detection. */
+  /**
+   * Performs optimizations that don't alter any Scala semantics, using strict
+   * side-effect detection.
+   */
   implicit case object safer extends OptimizationStrategyImpl(
     name = "safer",
     safety = SafetyCriteria.Safe,
-    speedup = SpeedupCriteria.OnlyWhenFaster)
+    speedup = SpeedupCriteria.OnlyWhenFaster
+  )
 
-  /** Performs optimizations that don't alter any Scala semantics, using reasonably
+  /**
+   * Performs optimizations that don't alter any Scala semantics, using reasonably
    * optimistic side-effect detection (for instance, assumes hashCode / equals / toString
-   * are side-effect-free for all objects). */
+   * are side-effect-free for all objects).
+   */
   implicit case object safe extends OptimizationStrategyImpl(
     name = "safe",
     safety = SafetyCriteria.ProbablySafe,
-    speedup = SpeedupCriteria.OnlyWhenFaster)
+    speedup = SpeedupCriteria.OnlyWhenFaster
+  )
 
-  /** Performs optimizations that don't alter any Scala semantics, using reasonably
+  /**
+   * Performs optimizations that don't alter any Scala semantics, using reasonably
    * optimistic side-effect detection (for instance, assumes hashCode / equals / toString
    * are side-effect-free for all objects), but performing rewrites that could be
    * counter-productive / slower.
    *
-   * Makes sure all possible lambdas are rewritten away. */
+   * Makes sure all possible lambdas are rewritten away.
+   */
   implicit case object zealous extends OptimizationStrategyImpl(
     name = "zealous",
     safety = SafetyCriteria.ProbablySafe,
-    speedup = SpeedupCriteria.AlwaysEvenIfSlower)
+    speedup = SpeedupCriteria.AlwaysEvenIfSlower
+  )
 
-  /** Performs unsafe rewrites, ignoring side-effect analysis (which may
+  /**
+   * Performs unsafe rewrites, ignoring side-effect analysis (which may
    * alter the semantics of the code, but only performing rewrites that are known to
-   * be faster. */
+   * be faster.
+   */
   implicit case object aggressive extends OptimizationStrategyImpl(
     name = "aggressive",
     safety = SafetyCriteria.Unsafe,
-    speedup = SpeedupCriteria.OnlyWhenFaster)
+    speedup = SpeedupCriteria.OnlyWhenFaster
+  )
 
   /** Performs all possible rewrites, even those known to be slower or unsafe. */
   implicit case object foolish extends OptimizationStrategyImpl(
     name = "foolish",
     safety = SafetyCriteria.Unsafe,
-    speedup = SpeedupCriteria.AlwaysEvenIfSlower)
+    speedup = SpeedupCriteria.AlwaysEvenIfSlower
+  )
 
   implicit val default: OptimizationStrategy = safe
 

@@ -2,8 +2,7 @@ package scalaxy.streams
 
 private[streams] trait OptionStreamSources
     extends OptionSinks
-    with StreamInterruptors
-{
+    with StreamInterruptors {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -28,7 +27,7 @@ private[streams] trait OptionStreamSources
               componentTpe =:= NoneModule.typeSignature ||
               componentTpe =:= NothingClass.typeSignature
             )
-          })
+        })
         .getOrElse(false)
 
     def unapply(tree: Tree): Option[StreamSource] = Option(tree).filter(hasOptionType) collect {
@@ -51,28 +50,30 @@ private[streams] trait OptionStreamSources
   }
 
   case class GenericOptionStreamSource(
-      option: Tree,
-      sinkOption: Option[StreamSink] = Some(OptionSink))
-    extends StreamSource
-  {
+    option: Tree,
+    sinkOption: Option[StreamSink] = Some(OptionSink)
+  )
+      extends StreamSource {
     override def describe = Some("Option")
 
     override def lambdaCount = 0
 
     override def subTrees = List(option)
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input.{ fresh, transform, typed }
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        import input.{ fresh, transform, typed }
 
-      val optionVal = fresh("option")
-      val itemVal = fresh("item")
-      val nonEmptyVal = fresh("nonEmpty")
+        val optionVal = fresh("option")
+        val itemVal = fresh("item")
+        val nonEmptyVal = fresh("nonEmpty")
 
-      // Early typing / symbolization.
-      val Block(List(
+        // Early typing / symbolization.
+        val Block(List(
           optionValDef,
           nonEmptyValDef,
           itemValDef),
@@ -83,27 +84,30 @@ private[streams] trait OptionStreamSources
         private[this] val $itemVal = $optionVal.get;
         ($nonEmptyVal, $itemVal)
       """)
-      val TuploidPathsExtractionDecls(extractionCode, outputVars, coercionSuccessVarDefRef) =
-        createTuploidPathsExtractionDecls(
-          itemValRef.tpe, itemValRef, outputNeeds, fresh, typed,
-          newCoercionSuccessVarDefRef(nextOps, fresh, typed))
+        val TuploidPathsExtractionDecls(extractionCode, outputVars, coercionSuccessVarDefRef) =
+          createTuploidPathsExtractionDecls(
+            itemValRef.tpe, itemValRef, outputNeeds, fresh, typed,
+            newCoercionSuccessVarDefRef(nextOps, fresh, typed)
+          )
 
-      // println(s"""
-      //   outputNeeds: $outputNeeds
-      //   extractionCode: $extractionCode
-      //   outputVars: $outputVars
-      //   coercionSuccessVarDefRef: $coercionSuccessVarDefRef
-      // """)
+        // println(s"""
+        //   outputNeeds: $outputNeeds
+        //   extractionCode: $extractionCode
+        //   outputVars: $outputVars
+        //   coercionSuccessVarDefRef: $coercionSuccessVarDefRef
+        // """)
 
-      val interruptor = new StreamInterruptor(input, nextOps)
-      val sub = emitSub(
-        input.copy(
-          vars = outputVars,
-          loopInterruptor = interruptor.loopInterruptor,
-          outputSize = None), // TODO 1 if nonEmpty, 0 otherwise.
-        nextOps,
-        coercionSuccessVarDefRef._2)
-      sub.copy(body = List(typed(q"""
+        val interruptor = new StreamInterruptor(input, nextOps)
+        val sub = emitSub(
+          input.copy(
+            vars = outputVars,
+            loopInterruptor = interruptor.loopInterruptor,
+            outputSize = None
+          ), // TODO 1 if nonEmpty, 0 otherwise.
+          nextOps,
+          coercionSuccessVarDefRef._2
+        )
+        sub.copy(body = List(typed(q"""
         $optionValDef;
         $nonEmptyValDef;
         ..${interruptor.defs}
@@ -114,41 +118,43 @@ private[streams] trait OptionStreamSources
           ..${sub.body};
         }
       """)))
-    }
+      }
   }
 
   case class InlineOptionStreamSource(
-      tpe: Type,
-      item: Tree,
-      isSome: Boolean,
-      sinkOption: Option[StreamSink] = Some(OptionSink))
-    extends StreamSource
-  {
+    tpe: Type,
+    item: Tree,
+    isSome: Boolean,
+    sinkOption: Option[StreamSink] = Some(OptionSink)
+  )
+      extends StreamSource {
     override def describe = Some(if (isSome) "Some" else "Option")
 
     override def lambdaCount = 0
 
     override def subTrees = List(item)
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input.{ fresh, transform, typed }
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        import input.{ fresh, transform, typed }
 
-      val itemVal = fresh("item")
-      val nonEmptyVal = fresh("nonEmpty")
+        val itemVal = fresh("item")
+        val nonEmptyVal = fresh("nonEmpty")
 
-      val nonEmptyTest =
-        if (isSome || tpe <:< typeOf[AnyVal])
-          q"true"
-        else if (tpe <:< typeOf[AnyRef])
-          q"$itemVal ne null"
-        else
-          q"$itemVal != null"
+        val nonEmptyTest =
+          if (isSome || tpe <:< typeOf[AnyVal])
+            q"true"
+          else if (tpe <:< typeOf[AnyRef])
+            q"$itemVal ne null"
+          else
+            q"$itemVal != null"
 
-      // Early typing / symbolization.
-      val Block(List(
+        // Early typing / symbolization.
+        val Block(List(
           itemValDef,
           nonEmptyValDef),
           TupleCreation(List(
@@ -157,22 +163,25 @@ private[streams] trait OptionStreamSources
         private[this] val $nonEmptyVal = $nonEmptyTest;
         ($nonEmptyVal, $itemVal)
       """)
-      val TuploidPathsExtractionDecls(extractionCode, outputVars, coercionSuccessVarDefRef) =
-        createTuploidPathsExtractionDecls(
-          tpe, itemValRef, outputNeeds, fresh, typed,
-          newCoercionSuccessVarDefRef(nextOps, fresh, typed))
+        val TuploidPathsExtractionDecls(extractionCode, outputVars, coercionSuccessVarDefRef) =
+          createTuploidPathsExtractionDecls(
+            tpe, itemValRef, outputNeeds, fresh, typed,
+            newCoercionSuccessVarDefRef(nextOps, fresh, typed)
+          )
 
-      val interruptor = new StreamInterruptor(input, nextOps)
-      val sub = emitSub(
-        input.copy(
-          vars = outputVars,
-          loopInterruptor = interruptor.loopInterruptor,
-          outputSize = None), // TODO 1 if nonEmpty, 0 otherwise.
-        nextOps,
-        coercionSuccessVarDefRef._2)
-      sub.copy(
-        beforeBody = Nil,
-        body = List(typed(q"""
+        val interruptor = new StreamInterruptor(input, nextOps)
+        val sub = emitSub(
+          input.copy(
+            vars = outputVars,
+            loopInterruptor = interruptor.loopInterruptor,
+            outputSize = None
+          ), // TODO 1 if nonEmpty, 0 otherwise.
+          nextOps,
+          coercionSuccessVarDefRef._2
+        )
+        sub.copy(
+          beforeBody = Nil,
+          body = List(typed(q"""
           $itemValDef;
           $nonEmptyValDef;
           ..${interruptor.defs}
@@ -183,8 +192,8 @@ private[streams] trait OptionStreamSources
           }
           ..${sub.afterBody}
         """)),
-        afterBody = Nil
-      )
-    }
+          afterBody = Nil
+        )
+      }
   }
 }

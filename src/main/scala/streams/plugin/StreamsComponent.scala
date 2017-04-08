@@ -21,7 +21,8 @@ private[streams] object StreamsComponent {
   val phaseName = "scalaxy-streams"
 }
 private[streams] class StreamsComponent(
-  val global: Global, runAfter: String = "typer")
+  val global: Global, runAfter: String = "typer"
+)
     extends PluginComponent
     with StreamTransforms
     with TypingTransformers
@@ -53,8 +54,9 @@ private[streams] class StreamsComponent(
 
           def typed(tree: Tree) = try {
             localTyper.typed(tree)
-          } catch { case ex: Throwable =>
-            throw new RuntimeException("Failed to type " + tree + "\n(" + ex + ")", ex)
+          } catch {
+            case ex: Throwable =>
+              throw new RuntimeException("Failed to type " + tree + "\n(" + ex + ")", ex)
           }
 
           // TODO: this is probably a very slow way to get the strategy :-S
@@ -79,7 +81,8 @@ private[streams] class StreamsComponent(
                 fresh = unit.fresh.newName,
                 currentOwner = currentOwner,
                 recur = transform(_),
-                typecheck = typed(_))
+                typecheck = typed(_)
+              )
             } catch {
               case ex: Throwable =>
                 logException(tree.pos, ex)

@@ -39,7 +39,8 @@ trait TreeBuilders
       if (mutable) Modifiers(Flag.MUTABLE) else NoMods,
       TermName(fresh(prefix)),
       TypeTree(tpe),
-      value)
+      value
+    )
     ValueDef(() => Ident(vd.name), vd, tpe)
   }
 }

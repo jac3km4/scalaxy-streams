@@ -2,8 +2,7 @@ package scalaxy.streams
 
 trait Streams
     extends StreamComponents
-    with UnusableSinks
-{
+    with UnusableSinks {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -48,8 +47,8 @@ trait Streams
       source: StreamSource,
       ops: List[StreamOp],
       sink: StreamSink,
-      hasExplicitSink: Boolean)
-  {
+      hasExplicitSink: Boolean
+  ) {
     // println("FOUND STREAM: " + describe())
     // println("FOUND STREAM: " + this)
 
@@ -63,7 +62,7 @@ trait Streams
 
     def describe(describeSink: Boolean = true) =
       sourceAndOps.flatMap(_.describe).mkString(".") +
-      sink.describe.filter(_ => describeSink).map(" -> " + _).getOrElse("")
+        sink.describe.filter(_ => describeSink).map(" -> " + _).getOrElse("")
 
     def lambdaCount: Int =
       components.map(_.lambdaCount).sum
@@ -85,31 +84,35 @@ trait Streams
           op.transmitOutputNeedsBackwards(refs)
       })
 
-    def emitStream(fresh: String => TermName,
-                   transform: Tree => Tree,
-                   typed: Tree => Tree,
-                   currentOwner: Symbol,
-                   sinkNeeds: Set[TuploidPath] = sink.outputNeeds,
-                   loopInterruptor: Option[Tree] = None): StreamOutput =
-    {
-      val sourceNeeds :: outputNeeds =
-        computeOutputNeedsBackwards(sinkNeeds)
+    def emitStream(
+      fresh: String => TermName,
+      transform: Tree => Tree,
+      typed: Tree => Tree,
+      currentOwner: Symbol,
+      sinkNeeds: Set[TuploidPath] = sink.outputNeeds,
+      loopInterruptor: Option[Tree] = None
+    ): StreamOutput =
+      {
+        val sourceNeeds :: outputNeeds =
+          computeOutputNeedsBackwards(sinkNeeds)
 
-      val nextOps = ops.zip(outputNeeds) :+ (sink, sinkNeeds)
-      // println(s"source = $source")
-      // println(s"""ops =\n\t${ops.map(_.getClass.getName).mkString("\n\t")}""")
-      // println(s"stream = ${describe()}")
-      // println(s"outputNeeds = ${nextOps.map(_._2)}")
-      source.emit(
-        input = StreamInput(
-          vars = UnitTreeScalarValue,
-          loopInterruptor = loopInterruptor,
-          fresh = fresh,
-          transform = transform,
-          currentOwner = currentOwner,
-          typed = typed),
-        outputNeeds = sourceNeeds,
-        nextOps = nextOps)
-    }
+        val nextOps = ops.zip(outputNeeds) :+ (sink, sinkNeeds)
+        // println(s"source = $source")
+        // println(s"""ops =\n\t${ops.map(_.getClass.getName).mkString("\n\t")}""")
+        // println(s"stream = ${describe()}")
+        // println(s"outputNeeds = ${nextOps.map(_._2)}")
+        source.emit(
+          input = StreamInput(
+            vars = UnitTreeScalarValue,
+            loopInterruptor = loopInterruptor,
+            fresh = fresh,
+            transform = transform,
+            currentOwner = currentOwner,
+            typed = typed
+          ),
+          outputNeeds = sourceNeeds,
+          nextOps = nextOps
+        )
+      }
   }
 }

@@ -4,17 +4,16 @@ private[streams] trait ExistsOps
     extends ClosureStreamOps
     with Strippers
     with OptionSinks
-    with UnusableSinks
-{
+    with UnusableSinks {
   val global: scala.reflect.api.Universe
   import global._
 
   object SomeExistsOp extends StreamOpExtractor {
     override def unapply(tree: Tree) = tree match {
-      case q"$target.exists(${Closure(closure)})" =>
+      case q"$target.exists(${ Closure(closure) })" =>
         ExtractedStreamOp(target, ExistsOp(closure))
 
-      case q"$target.forall(${Closure(closure)})" =>
+      case q"$target.forall(${ Closure(closure) })" =>
         ExtractedStreamOp(target, ForallOp(closure))
 
       case _ =>
@@ -23,10 +22,10 @@ private[streams] trait ExistsOps
   }
 
   case class ExistsOp(override val closure: Function)
-      extends ExistsOpLike("exists", exists = true, closure)
+    extends ExistsOpLike("exists", exists = true, closure)
 
   case class ForallOp(override val closure: Function)
-      extends ExistsOpLike("forall", exists = false, closure)
+    extends ExistsOpLike("forall", exists = false, closure)
 
   class ExistsOpLike(name: String, exists: Boolean, val closure: Function) extends ClosureStreamOp {
     override def canInterruptLoop = true
@@ -35,25 +34,28 @@ private[streams] trait ExistsOps
     override def sinkOption = Some(ScalarSink)
     override def describe = Some(name)
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      val List((ScalarSink, _)) = nextOps
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        val List((ScalarSink, _)) = nextOps
 
-      import input.{ typed, fresh }
+        import input.{ typed, fresh }
 
-      val (replacedStatements, outputVars) =
-        transformationClosure.replaceClosureBody(
-          input,
-          outputNeeds + RootTuploidPath)
+        val (replacedStatements, outputVars) =
+          transformationClosure.replaceClosureBody(
+            input,
+            outputNeeds + RootTuploidPath
+          )
 
-      var test = outputVars.alias.get
+        var test = outputVars.alias.get
 
-      val result = fresh("result")
+        val result = fresh("result")
 
-      // Force typing of declarations and get typed references to various vars and vals.
-      val Block(List(
+        // Force typing of declarations and get typed references to various vars and vals.
+        val Block(List(
           resultVarDef,
           resultFalse,
           resultTrue), resultVarRef) = typed(q"""
@@ -63,16 +65,17 @@ private[streams] trait ExistsOps
         $result
       """)
 
-      StreamOutput(
-        prelude = List(resultVarDef),
-        body = List(q"""
+        StreamOutput(
+          prelude = List(resultVarDef),
+          body = List(q"""
           ..$replacedStatements;
           if (${if (exists) test else q"!$test"}) {
             ${if (exists) resultTrue else resultFalse};
             ${input.loopInterruptor.get.duplicate} = false;
           }
         """),
-        ending = List(resultVarRef))
-    }
+          ending = List(resultVarRef)
+        )
+      }
   }
 }

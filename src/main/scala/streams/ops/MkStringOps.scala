@@ -3,8 +3,7 @@ package scalaxy.streams
 private[streams] trait MkStringOps
     extends UnusableSinks
     with OptionSinks
-    with Streams
-{
+    with Streams {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -23,7 +22,7 @@ private[streams] trait MkStringOps
 
           case q"$target.mkString($start, $sep, $end)" =>
             ExtractedStreamOp(target, MkStringOp(Some(start), Some(sep), Some(end)))
-          
+
           case _ =>
             NoExtractedStreamOp
         }
@@ -33,9 +32,11 @@ private[streams] trait MkStringOps
     }
   }
 
-  case class MkStringOp(start: Option[Tree],
-                        sep: Option[Tree], 
-                        end: Option[Tree]) extends StreamOp {
+  case class MkStringOp(
+    start: Option[Tree],
+      sep: Option[Tree],
+      end: Option[Tree]
+  ) extends StreamOp {
     override def lambdaCount = 0
     override def sinkOption = Some(ScalarSink)
     override def canAlterSize = false
@@ -46,23 +47,23 @@ private[streams] trait MkStringOps
       Set(RootTuploidPath)
 
     override def emit(input: StreamInput, outputNeeds: OutputNeeds, nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input._
+      {
+        import input._
 
-      // TODO: remove this to unlock flatMap
-      val List((ScalarSink, _)) = nextOps
+        // TODO: remove this to unlock flatMap
+        val List((ScalarSink, _)) = nextOps
 
-      val startVal = fresh("start")
-      val sepVal = fresh("sep")
-      val endVal = fresh("end")
-      val firstVar = fresh("first")
-      val builderVal = fresh("builder")
+        val startVal = fresh("start")
+        val sepVal = fresh("sep")
+        val endVal = fresh("end")
+        val firstVar = fresh("first")
+        val builderVal = fresh("builder")
 
-      require(input.vars.alias.nonEmpty, s"input.vars = $input.vars")
+        require(input.vars.alias.nonEmpty, s"input.vars = $input.vars")
 
-      def emptyString: Tree = q""" "" """
+        def emptyString: Tree = q""" "" """
 
-      val Block(List(
+        val Block(List(
           startDef,
           sepDef,
           endDef,
@@ -88,52 +89,54 @@ private[streams] trait MkStringOps
         $builderVal.result()
       """)
 
-      (start, sep, end) match {
-        case (None, None, None) =>
-          StreamOutput(
-            prelude = List(builderDef),
-            body = List(appendInput),
-            ending = List(result))
+        (start, sep, end) match {
+          case (None, None, None) =>
+            StreamOutput(
+              prelude = List(builderDef),
+              body = List(appendInput),
+              ending = List(result)
+            )
 
-        case (None, Some(_), None) =>
-          StreamOutput(
-            prelude = List(builderDef, firstDef, sepDef),
-            body = List(appendSep, appendInput),
-            ending = List(result))
+          case (None, Some(_), None) =>
+            StreamOutput(
+              prelude = List(builderDef, firstDef, sepDef),
+              body = List(appendSep, appendInput),
+              ending = List(result)
+            )
 
-        case _ =>
-          StreamOutput(
-            prelude = List(builderDef, firstDef, startDef, sepDef, endDef, appendStart),
-            body = List(appendSep, appendInput),
-            ending = List(appendEnd, result))
+          case _ =>
+            StreamOutput(
+              prelude = List(builderDef, firstDef, startDef, sepDef, endDef, appendStart),
+              body = List(appendSep, appendInput),
+              ending = List(appendEnd, result)
+            )
+        }
       }
-    }
   }
 }
 
+// def mkString(start: String, sep: String, end: String): String =
+//   addString(new StringBuilder(), start, sep, end).toString
 
-  // def mkString(start: String, sep: String, end: String): String =
-  //   addString(new StringBuilder(), start, sep, end).toString
+// def mkString(sep: String): String = mkString("", sep, "")
 
-  // def mkString(sep: String): String = mkString("", sep, "")
+// def mkString: String = mkString("")
 
-  // def mkString: String = mkString("")
+// def addString(b: StringBuilder, start: String, sep: String, end: String): StringBuilder = {
+//   var first = true
 
-  // def addString(b: StringBuilder, start: String, sep: String, end: String): StringBuilder = {
-  //   var first = true
+//   b append start
+//   for (x <- self) {
+//     if (first) {
+//       b append x
+//       first = false
+//     }
+//     else {
+//       b append sep
+//       b append x
+//     }
+//   }
+//   b append end
 
-  //   b append start
-  //   for (x <- self) {
-  //     if (first) {
-  //       b append x
-  //       first = false
-  //     }
-  //     else {
-  //       b append sep
-  //       b append x
-  //     }
-  //   }
-  //   b append end
-
-  //   b
-  // }
+//   b
+// }

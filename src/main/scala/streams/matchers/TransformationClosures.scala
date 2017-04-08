@@ -3,11 +3,10 @@ import scala.collection.breakOut
 import scala.collection.mutable.ListBuffer
 
 private[streams] trait TransformationClosures
-  extends TuploidValues
-  with Strippers
-  with StreamResults
-  with SymbolMatchers
-{
+    extends TuploidValues
+    with Strippers
+    with StreamResults
+    with SymbolMatchers {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -29,8 +28,8 @@ private[streams] trait TransformationClosures
     def unapply(closure: Tree): Option[TransformationClosure] = {
 
       Option(closure) collect {
-        case q"""($param) => ${Strip(pref @ Ident(_))} match {
-          case ${CaseTuploidValue(inputValue, body)}
+        case q"""($param) => ${ Strip(pref @ Ident(_)) } match {
+          case ${ CaseTuploidValue(inputValue, body) }
         }""" if param.name == pref.name =>
           (inputValue, body)
 
@@ -48,8 +47,8 @@ private[streams] trait TransformationClosures
       inputs: TuploidValue[Symbol],
       statements: List[Tree],
       outputs: TuploidValue[Symbol],
-      closureSymbol: Symbol)
-  {
+      closureSymbol: Symbol
+  ) {
     private[this] val inputSymbols: Set[Symbol] = inputs.collectAliases.values.toSet
     private[this] val outputSymbols: Map[TuploidPath, Symbol] = outputs.collectAliases
 
@@ -57,7 +56,6 @@ private[streams] trait TransformationClosures
       case t: RefTree if inputSymbols(t.symbol) =>
         t.symbol
     })(breakOut)
-
 
     val outputPathToInputPath: Map[TuploidPath, TuploidPath] = {
 
@@ -77,62 +75,65 @@ private[streams] trait TransformationClosures
 
     def getPreviousReferencedPaths(
       nextReferencedPaths: Set[TuploidPath],
-      isMapLike: Boolean = true)
-        : Set[TuploidPath] =
-    {
-      val closureReferencePaths = usedInputs.map(inputs.find(_).get)
+      isMapLike: Boolean = true
+    ): Set[TuploidPath] =
+      {
+        val closureReferencePaths = usedInputs.map(inputs.find(_).get)
 
-      val transposedPaths =
-        if (isMapLike)
-          nextReferencedPaths.collect(outputPathToInputPath)
-        else
-          nextReferencedPaths
+        val transposedPaths =
+          if (isMapLike)
+            nextReferencedPaths.collect(outputPathToInputPath)
+          else
+            nextReferencedPaths
 
-      closureReferencePaths ++ transposedPaths
-    }
-
-    def replaceClosureBody(streamInput: StreamInput, outputNeeds: OutputNeeds): (List[Tree], TuploidValue[Tree]) =
-    {
-      // println(s"""
-      //   inputs = $inputs
-      //   statements = $statements
-      //   outputs = $outputs
-      //   closureSymbol = $closureSymbol
-      //   streamInput = $streamInput
-      //   outputNeeds = $outputNeeds
-      //   outputPathToInputPath = $outputPathToInputPath
-      // """)
-
-      import streamInput.{ fresh, transform, typed, currentOwner }
-
-      val replacer = getReplacer(inputs, streamInput.vars)
-      val fullTransform = (tree: Tree) => {
-        transform(
-          HacksAndWorkarounds.replaceDeletedOwner(global)(
-            replacer(tree),
-            deletedOwner = closureSymbol,
-            newOwner = currentOwner))
+        closureReferencePaths ++ transposedPaths
       }
 
-      val ClosureWiringResult(pre, post, outputVars) =
-        wireInputsAndOutputs(
-          inputSymbols,
-          outputs,
-          outputPathToInputPath,
-          streamInput.copy(transform = fullTransform),
-          outputNeeds)
+    def replaceClosureBody(streamInput: StreamInput, outputNeeds: OutputNeeds): (List[Tree], TuploidValue[Tree]) =
+      {
+        // println(s"""
+        //   inputs = $inputs
+        //   statements = $statements
+        //   outputs = $outputs
+        //   closureSymbol = $closureSymbol
+        //   streamInput = $streamInput
+        //   outputNeeds = $outputNeeds
+        //   outputPathToInputPath = $outputPathToInputPath
+        // """)
 
-      val blockStatements = statements.map(fullTransform) ++ post
-      val results =
-        pre ++
-        (
-          if (blockStatements.isEmpty)
-            Nil
-          else
-            List(Block(blockStatements.dropRight(1), blockStatements.last))
-        )
+        import streamInput.{ fresh, transform, typed, currentOwner }
 
-      (results, outputVars)
-    }
+        val replacer = getReplacer(inputs, streamInput.vars)
+        val fullTransform = (tree: Tree) => {
+          transform(
+            HacksAndWorkarounds.replaceDeletedOwner(global)(
+              replacer(tree),
+              deletedOwner = closureSymbol,
+              newOwner = currentOwner
+            )
+          )
+        }
+
+        val ClosureWiringResult(pre, post, outputVars) =
+          wireInputsAndOutputs(
+            inputSymbols,
+            outputs,
+            outputPathToInputPath,
+            streamInput.copy(transform = fullTransform),
+            outputNeeds
+          )
+
+        val blockStatements = statements.map(fullTransform) ++ post
+        val results =
+          pre ++
+            (
+              if (blockStatements.isEmpty)
+                Nil
+              else
+                List(Block(blockStatements.dropRight(1), blockStatements.last))
+            )
+
+        (results, outputVars)
+      }
   }
 }

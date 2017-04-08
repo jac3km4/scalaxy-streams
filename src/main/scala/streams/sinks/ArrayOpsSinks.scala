@@ -6,8 +6,7 @@ private[streams] trait ArrayOpsSinks extends ArrayBuilderSinks {
   val global: scala.reflect.api.Universe
   import global._
 
-  case object ArrayOpsSink extends StreamSink
-  {
+  case object ArrayOpsSink extends StreamSink {
     override def isFinalOnly = true
     override def isJustAWrapper = true
     override def describe = Some("ArrayOps")
@@ -33,24 +32,24 @@ private[streams] trait ArrayOpsSinks extends ArrayBuilderSinks {
     }
 
     override def emit(input: StreamInput, outputNeeds: OutputNeeds, nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input._
+      {
+        import input._
 
-      val arrayOutput = ArrayBuilderSink.emit(input, outputNeeds, nextOps)
-      val componentTpe = input.vars.tpe.dealias
+        val arrayOutput = ArrayBuilderSink.emit(input, outputNeeds, nextOps)
+        val componentTpe = input.vars.tpe.dealias
 
-      def getResult(array: Tree) = typed(
-        anyValOpsClassNameByType.get(componentTpe) match {
-          case Some(primitiveOpsClass) =>
-            q"new ${rootMirror.staticClass(primitiveOpsClass)}($array)"
-          case _ if componentTpe <:< typeOf[AnyRef] =>
-            q"new scala.collection.mutable.ArrayOps.ofRef[$componentTpe]($array)"
-          case _ =>
-            q"genericArrayOps[$componentTpe]($array)"
-        }
-      )
+        def getResult(array: Tree) = typed(
+          anyValOpsClassNameByType.get(componentTpe) match {
+            case Some(primitiveOpsClass) =>
+              q"new ${rootMirror.staticClass(primitiveOpsClass)}($array)"
+            case _ if componentTpe <:< typeOf[AnyRef] =>
+              q"new scala.collection.mutable.ArrayOps.ofRef[$componentTpe]($array)"
+            case _ =>
+              q"genericArrayOps[$componentTpe]($array)"
+          }
+        )
 
-      arrayOutput.copy(ending = replaceLast[Tree](arrayOutput.ending, getResult(_)))
-    }
+        arrayOutput.copy(ending = replaceLast[Tree](arrayOutput.ending, getResult(_)))
+      }
   }
 }

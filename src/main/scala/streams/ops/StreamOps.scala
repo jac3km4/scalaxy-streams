@@ -20,8 +20,7 @@ private[streams] trait StreamOps
     with ToCollectionOps
     with TakeDropOps
     with TakeWhileOps
-    with ZipWithIndexOps
-{
+    with ZipWithIndexOps {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -56,8 +55,7 @@ private[streams] trait StreamOps
         extractor.unapply(tree) match {
           case e @ ExtractedStreamOp(target, op) if !e.isEmpty =>
             target match {
-              case SomeStreamOps(src, ops)
-                  if !ops.lastOption.exists(_.sinkOption == Some(ScalarSink)) =>
+              case SomeStreamOps(src, ops) if !ops.lastOption.exists(_.sinkOption == Some(ScalarSink)) =>
                 Some(src, ops :+ op)
 
               case src =>

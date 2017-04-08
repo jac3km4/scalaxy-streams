@@ -2,22 +2,20 @@ package scalaxy.streams
 
 import scala.reflect.macros.blackbox.Context
 
-private[scalaxy] object HacksAndWorkarounds
-{
+private[scalaxy] object HacksAndWorkarounds {
   def call(obj: Any, method: String, args: Any*): Any = {
     val cls = obj.getClass
     val ms = cls.getMethods
     val name = method.replace("=", "$eq")
     ms.filter(_.getName == name) match {
       case Array(m) =>
-        m.invoke(obj, args.map(_.asInstanceOf[Object]).toArray:_*)
+        m.invoke(obj, args.map(_.asInstanceOf[Object]).toArray: _*)
       case Array() =>
         sys.error(s"No method $name in $cls:\n\t${ms.map(_.getName).sorted.reduce(_ + "\n" + _)}")
     }
   }
 
-  def replaceDeletedOwner(u: scala.reflect.api.Universe)
-                         (tree: u.Tree, deletedOwner: u.Symbol, newOwner: u.Symbol) = {
+  def replaceDeletedOwner(u: scala.reflect.api.Universe)(tree: u.Tree, deletedOwner: u.Symbol, newOwner: u.Symbol) = {
     import u._
     val dup = tree // TODO: tree.duplicate (but does it keep positions??)
 

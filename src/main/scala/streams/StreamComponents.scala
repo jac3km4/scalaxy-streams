@@ -2,15 +2,13 @@ package scalaxy.streams
 
 private[streams] trait StreamComponents
     extends StreamResults
-    with SideEffects
-{
+    with SideEffects {
   val global: scala.reflect.api.Universe
   import global._
 
   type OpsAndOutputNeeds = List[(StreamOp, OutputNeeds)]
 
-  trait StreamComponent
-  {
+  trait StreamComponent {
     def describe: Option[String]
 
     def sinkOption: Option[StreamSink]
@@ -30,41 +28,43 @@ private[streams] trait StreamComponents
 
     def closureSideEffectss: List[List[SideEffect]] = Nil
 
-    def emit(input: StreamInput,
-             outputNeeds: OutputNeeds,
-             nextOps: OpsAndOutputNeeds): StreamOutput
+    def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput
 
     protected def emitSub(
-      input: StreamInput, 
+      input: StreamInput,
       nextOps: OpsAndOutputNeeds,
-      coercionSuccessVarRef: Option[Tree] = None): StreamOutput =
-    {
-      nextOps match {
-        case (firstOp, outputNeeds) :: otherOpsAndOutputNeeds =>
-          val sub =
-            firstOp.emit(input, outputNeeds, otherOpsAndOutputNeeds)
-          coercionSuccessVarRef match {
-            case Some(varRef) =>
-              sub.copy(body = List(q"""
+      coercionSuccessVarRef: Option[Tree] = None
+    ): StreamOutput =
+      {
+        nextOps match {
+          case (firstOp, outputNeeds) :: otherOpsAndOutputNeeds =>
+            val sub =
+              firstOp.emit(input, outputNeeds, otherOpsAndOutputNeeds)
+            coercionSuccessVarRef match {
+              case Some(varRef) =>
+                sub.copy(body = List(q"""
                 if ($varRef) {
                   ..${sub.body};
                 }
               """))
 
-            case _ =>
-              sub
-          }
+              case _ =>
+                sub
+            }
 
-        case Nil =>
-          sys.error("Cannot call base emit at the end of an ops stream.")
+          case Nil =>
+            sys.error("Cannot call base emit at the end of an ops stream.")
+        }
       }
-    }
   }
 
   trait StreamSource extends StreamComponent
 
-  trait StreamOp extends StreamComponent
-  {
+  trait StreamOp extends StreamComponent {
     def canInterruptLoop: Boolean = false
     def canAlterSize: Boolean
     def isPassThrough = false
@@ -72,8 +72,7 @@ private[streams] trait StreamComponents
     def transmitOutputNeedsBackwards(paths: Set[TuploidPath]): Set[TuploidPath]
   }
 
-  trait StreamSink extends StreamOp
-  {
+  trait StreamSink extends StreamOp {
     /** Sometimes, a sink may not be emit-able because it's not implemented, but can appear in intermediate ops (as long as it's followed by an implemented sink. */
     def isImplemented = true
 
@@ -94,13 +93,19 @@ private[streams] trait StreamComponents
       needs
     }
 
-    def requireSinkInput(input: StreamInput,
-                         outputNeeds: OutputNeeds,
-                         nextOps: OpsAndOutputNeeds) {
-      require(nextOps.isEmpty,
-        "Cannot chain ops through a sink (got nextOps = " + nextOps + ")")
-      require(outputNeeds == this.outputNeeds,
-        "Expected outputNeeds " + this.outputNeeds + " for sink, got " + outputNeeds)
+    def requireSinkInput(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ) {
+      require(
+        nextOps.isEmpty,
+        "Cannot chain ops through a sink (got nextOps = " + nextOps + ")"
+      )
+      require(
+        outputNeeds == this.outputNeeds,
+        "Expected outputNeeds " + this.outputNeeds + " for sink, got " + outputNeeds
+      )
     }
   }
 
@@ -116,13 +121,15 @@ private[streams] trait StreamComponents
 
     override def transmitOutputNeedsBackwards(paths: Set[TuploidPath]) = paths
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      var (nextOp, nextOutputNeeds) :: subsequentOps = nextOps
-      nextOp.emit(input, nextOutputNeeds, subsequentOps)
-    }
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        var (nextOp, nextOutputNeeds) :: subsequentOps = nextOps
+        nextOp.emit(input, nextOutputNeeds, subsequentOps)
+      }
   }
 
   // Allow loose coupling between sources, ops and sinks traits:

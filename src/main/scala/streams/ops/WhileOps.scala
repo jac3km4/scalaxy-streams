@@ -4,8 +4,7 @@ private[streams] trait TakeWhileOps
     extends ClosureStreamOps
     with Strippers
     with OptionSinks
-    with UnusableSinks
-{
+    with UnusableSinks {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -17,10 +16,10 @@ private[streams] trait TakeWhileOps
         None
 
     override def unapply(tree: Tree) = tree match {
-      case q"$target.takeWhile(${Closure(closure)})" =>
+      case q"$target.takeWhile(${ Closure(closure) })" =>
         ExtractedStreamOp(target, TakeWhileOp(closure, sinkOptionForReturnType(tree.tpe)))
 
-      case q"$target.dropWhile(${Closure(closure)})" =>
+      case q"$target.dropWhile(${ Closure(closure) })" =>
         ExtractedStreamOp(target, DropWhileOp(closure, sinkOptionForReturnType(tree.tpe)))
 
       case _ =>
@@ -34,26 +33,28 @@ private[streams] trait TakeWhileOps
     override def isMapLike = false
   }
 
-  case class TakeWhileOp(closure: Function, sinkOption: Option[StreamSink]) extends WhileOp
-  {
+  case class TakeWhileOp(closure: Function, sinkOption: Option[StreamSink]) extends WhileOp {
     override def canInterruptLoop = true
     override def describe = Some("takeWhile")
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input.typed
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        import input.typed
 
-      val (replacedStatements, outputVars) =
-        transformationClosure.replaceClosureBody(
-          input,
-          outputNeeds + RootTuploidPath)
+        val (replacedStatements, outputVars) =
+          transformationClosure.replaceClosureBody(
+            input,
+            outputNeeds + RootTuploidPath
+          )
 
-      var test = outputVars.alias.get
+        var test = outputVars.alias.get
 
-      var sub = emitSub(input.copy(outputSize = None), nextOps)
-      sub.copy(body = List(q"""
+        var sub = emitSub(input.copy(outputSize = None), nextOps)
+        sub.copy(body = List(q"""
         ..$replacedStatements;
         if ($test) {
           ..${sub.body};
@@ -61,30 +62,32 @@ private[streams] trait TakeWhileOps
           ${input.loopInterruptor.get.duplicate} = false;
         }
       """))
-    }
+      }
   }
 
-  case class DropWhileOp(closure: Function, sinkOption: Option[StreamSink]) extends WhileOp
-  {
+  case class DropWhileOp(closure: Function, sinkOption: Option[StreamSink]) extends WhileOp {
     override def canInterruptLoop = false
     override def describe = Some("dropWhile")
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input.{ typed, fresh }
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        import input.{ typed, fresh }
 
-      val (replacedStatements, outputVars) =
-        transformationClosure.replaceClosureBody(
-          input,
-          outputNeeds + RootTuploidPath)
+        val (replacedStatements, outputVars) =
+          transformationClosure.replaceClosureBody(
+            input,
+            outputNeeds + RootTuploidPath
+          )
 
-      val test = outputVars.alias.get
+        val test = outputVars.alias.get
 
-      val doneDropping = fresh("doneDropping")
-      // Force typing of declarations and get typed references to various vars and vals.
-      val Block(List(
+        val doneDropping = fresh("doneDropping")
+        // Force typing of declarations and get typed references to various vars and vals.
+        val Block(List(
           doneDroppingVarDef,
           setDoneDropping), combinedTest) = typed(q"""
         private[this] var $doneDropping = false;
@@ -92,16 +95,17 @@ private[streams] trait TakeWhileOps
         $doneDropping || !$test
       """)
 
-      val sub = emitSub(input.copy(outputSize = None), nextOps)
-      sub.copy(
-        beforeBody = sub.beforeBody :+ doneDroppingVarDef,
-        body = List(q"""
+        val sub = emitSub(input.copy(outputSize = None), nextOps)
+        sub.copy(
+          beforeBody = sub.beforeBody :+ doneDroppingVarDef,
+          body = List(q"""
         ..$replacedStatements;
         if ($combinedTest) {
           $setDoneDropping;
           ..${sub.body};
         }
-      """))
-    }
+      """)
+        )
+      }
   }
 }

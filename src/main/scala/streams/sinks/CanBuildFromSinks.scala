@@ -9,8 +9,7 @@ private[streams] trait CanBuildFromSinks
   val global: scala.reflect.api.Universe
   import global._
 
-  class CanBuildFromSink(canBuildFrom: Tree) extends BuilderSink
-  {
+  class CanBuildFromSink(canBuildFrom: Tree) extends BuilderSink {
     override def subTrees = List(canBuildFrom)
 
     val TypeRef(_, _, List(_, _, toTpe: Type)) = {
@@ -28,8 +27,7 @@ private[streams] trait CanBuildFromSinks
     }
   }
 
-  object CanBuildFromSink
-  {
+  object CanBuildFromSink {
     def unapply(op: StreamOp): Option[CanBuildFromSink] =
       Option(op) collect { case op: CanBuildFromSink => op }
 

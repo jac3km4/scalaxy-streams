@@ -2,14 +2,13 @@ package scalaxy.streams
 
 private[streams] trait ForeachOps
     extends ClosureStreamOps
-    with UnusableSinks
-{
+    with UnusableSinks {
   val global: scala.reflect.api.Universe
   import global._
 
   object SomeForeachOp extends StreamOpExtractor {
     override def unapply(tree: Tree) = tree match {
-      case q"$target.foreach[${_}](${Closure(closure)})" =>
+      case q"$target.foreach[${ _ }](${ Closure(closure) })" =>
         ExtractedStreamOp(target, ForeachOp(closure))
 
       case _ =>
@@ -17,8 +16,7 @@ private[streams] trait ForeachOps
     }
   }
   case class ForeachOp(closure: Function)
-      extends ClosureStreamOp
-  {
+      extends ClosureStreamOp {
     override def describe = Some("foreach")
 
     override def sinkOption = Some(ScalarSink)
@@ -26,18 +24,20 @@ private[streams] trait ForeachOps
     /// Technically, the output size of the Unit output is zero, so it's altered.
     override def canAlterSize = true
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      val List((ScalarSink, _)) = nextOps
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        val List((ScalarSink, _)) = nextOps
 
-      val (replacedStatements, outputVars) =
-        transformationClosure.replaceClosureBody(input, outputNeeds)
+        val (replacedStatements, outputVars) =
+          transformationClosure.replaceClosureBody(input, outputNeeds)
 
-      // require(outputVars.tpe.dealias =:= typeOf[Unit], "Expected Unit, got " + outputVars.tpe)
+        // require(outputVars.tpe.dealias =:= typeOf[Unit], "Expected Unit, got " + outputVars.tpe)
 
-      StreamOutput(body = replacedStatements)
-    }
+        StreamOutput(body = replacedStatements)
+      }
   }
 }

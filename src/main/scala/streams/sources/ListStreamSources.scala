@@ -2,8 +2,7 @@ package scalaxy.streams
 
 private[streams] trait ListStreamSources
     extends ListBufferSinks
-    with StreamInterruptors
-{
+    with StreamInterruptors {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -15,27 +14,29 @@ private[streams] trait ListStreamSources
   }
 
   case class ListStreamSource(
-      list: Tree,
-      describe: Option[String] = Some("List"),
-      sinkOption: Option[StreamSink] = Some(ListBufferSink))
-    extends StreamSource
-  {
+    list: Tree,
+    describe: Option[String] = Some("List"),
+    sinkOption: Option[StreamSink] = Some(ListBufferSink)
+  )
+      extends StreamSource {
     override def lambdaCount = 0
 
     override def subTrees = List(list)
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input.{ fresh, transform, typed }
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        import input.{ fresh, transform, typed }
 
-      val listVal = fresh("list")
-      val listVar = fresh("currList")
-      val itemVal = fresh("item")
+        val listVal = fresh("list")
+        val listVar = fresh("currList")
+        val itemVal = fresh("item")
 
-      // Early typing / symbolization.
-      val Block(List(
+        // Early typing / symbolization.
+        val Block(List(
           listValDef,
           listVarDef,
           itemValDef,
@@ -48,23 +49,26 @@ private[streams] trait ListStreamSources
         $listVar = $listVar.tail;
         ($listVal.size, $listVar ne Nil, $itemVal)
       """)
-      val TuploidPathsExtractionDecls(extractionCode, outputVars, coercionSuccessVarDefRef) =
-        createTuploidPathsExtractionDecls(
-          itemValRef.tpe, itemValRef, outputNeeds, fresh, typed,
-          newCoercionSuccessVarDefRef(nextOps, fresh, typed))
+        val TuploidPathsExtractionDecls(extractionCode, outputVars, coercionSuccessVarDefRef) =
+          createTuploidPathsExtractionDecls(
+            itemValRef.tpe, itemValRef, outputNeeds, fresh, typed,
+            newCoercionSuccessVarDefRef(nextOps, fresh, typed)
+          )
 
-      val interruptor = new StreamInterruptor(input, nextOps)
+        val interruptor = new StreamInterruptor(input, nextOps)
 
-      val sub = emitSub(
-        input.copy(
-          vars = outputVars,
-          loopInterruptor = interruptor.loopInterruptor,
-          outputSize = Some(listSize)),
-        nextOps,
-        coercionSuccessVarDefRef._2)
-      sub.copy(
-        beforeBody = Nil,
-        body = List(typed(q"""
+        val sub = emitSub(
+          input.copy(
+            vars = outputVars,
+            loopInterruptor = interruptor.loopInterruptor,
+            outputSize = Some(listSize)
+          ),
+          nextOps,
+          coercionSuccessVarDefRef._2
+        )
+        sub.copy(
+          beforeBody = Nil,
+          body = List(typed(q"""
           $listValDef;
           $listVarDef;
           ..${interruptor.defs}
@@ -77,8 +81,8 @@ private[streams] trait ListStreamSources
           }
           ..${sub.afterBody}
         """)),
-        afterBody = Nil
-      )
-    }
+          afterBody = Nil
+        )
+      }
   }
 }

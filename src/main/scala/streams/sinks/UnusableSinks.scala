@@ -4,8 +4,7 @@ private[streams] trait UnusableSinks extends StreamComponents {
   val global: scala.reflect.api.Universe
   import global._
 
-  trait UnusableSinkBase extends StreamSink
-  {
+  trait UnusableSinkBase extends StreamSink {
     override def describe = None
 
     override def lambdaCount = 0

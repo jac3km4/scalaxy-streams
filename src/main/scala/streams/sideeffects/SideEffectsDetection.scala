@@ -6,8 +6,7 @@ import scalaxy.streams.SideEffectsWhitelists._
 
 trait SideEffectsDetection
     extends Streams
-    with SideEffectsMessages
-{
+    with SideEffectsMessages {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -31,13 +30,13 @@ trait SideEffectsDetection
   private[this] def isSideEffectFree(sym: Symbol): Boolean = {
     val result =
       sym.isPackage ||
-      sym.isTerm && {
-        val tsym = sym.asTerm
-        tsym.isVal && tsym.isStable && !tsym.isLazy
-      } ||
-      whitelistedSymbols(sym.fullName) ||
-      whitelistedClasses(sym.enclosingClass.fullName) ||
-      whitelistedPackages(sym.enclosingPackage.fullName)
+        sym.isTerm && {
+          val tsym = sym.asTerm
+          tsym.isVal && tsym.isStable && !tsym.isLazy
+        } ||
+        whitelistedSymbols(sym.fullName) ||
+        whitelistedClasses(sym.enclosingClass.fullName) ||
+        whitelistedPackages(sym.enclosingPackage.fullName)
 
     // if (sym.isTerm) {
     //   val tsym = sym.asTerm
@@ -59,7 +58,7 @@ trait SideEffectsDetection
     val sym = tpe.typeSymbol
     val result =
       sym != null && sym != NoSymbol &&
-      trulyImmutableClasses(sym.fullName)
+        trulyImmutableClasses(sym.fullName)
 
     // println(s"isTrulyImmutableClass($sym) = $result")
     result
@@ -75,7 +74,7 @@ trait SideEffectsDetection
           (target, name, Nil, Nil)
 
         case TypeApply(SelectOrApply(target, name, Nil, Nil), targs) =>
-        // case TypeApply(Select(target, name), targs) =>
+          // case TypeApply(Select(target, name), targs) =>
           (target, name, targs, Nil)
 
         case Apply(SelectOrApply(target, name, targs, argss), newArgs) =>
@@ -135,15 +134,13 @@ trait SideEffectsDetection
               traverse(sub)
             }
 
-          case SelectOrApply(qualifier, N(name @ ("hashCode" | "toString")), Nil, Nil | List(Nil))
-              if !isTrulyImmutableClass(qualifier.tpe) =>
+          case SelectOrApply(qualifier, N(name @ ("hashCode" | "toString")), Nil, Nil | List(Nil)) if !isTrulyImmutableClass(qualifier.tpe) =>
             keepWorstSideEffect {
               addEffect(SideEffect(tree, anyMethodMessage(name), SideEffectSeverity.ProbablySafe))
               traverse(qualifier)
             }
 
-          case SelectOrApply(qualifier, N(name @ ("equals" | "$eq$eq" | "$bang$eq" | "ne")), Nil, List(List(other)))
-              if !isTrulyImmutableClass(qualifier.tpe) || name == "ne" =>
+          case SelectOrApply(qualifier, N(name @ ("equals" | "$eq$eq" | "$bang$eq" | "ne")), Nil, List(List(other))) if !isTrulyImmutableClass(qualifier.tpe) || name == "ne" =>
             keepWorstSideEffect {
               if (name != "ne") {
                 addEffect(SideEffect(tree, anyMethodMessage(name), SideEffectSeverity.ProbablySafe))
@@ -162,17 +159,17 @@ trait SideEffectsDetection
 
               def qualifierIsImmutable =
                 qualifier != EmptyTree &&
-                qualifier.tpe != null &&
-                qualifier.tpe != NoType &&
-                isTrulyImmutableClass(qualifier.tpe)
+                  qualifier.tpe != null &&
+                  qualifier.tpe != NoType &&
+                  isTrulyImmutableClass(qualifier.tpe)
 
               val safeSymbol =
                 !isBlacklisted(sym) &&
-                (
-                  localSymbols.contains(sym) ||
-                  isSideEffectFree(sym) ||
-                  qualifierIsImmutable
-                )
+                  (
+                    localSymbols.contains(sym) ||
+                    isSideEffectFree(sym) ||
+                    qualifierIsImmutable
+                  )
 
               // if (safeSymbol) {
               //   println(s"""
@@ -198,8 +195,10 @@ trait SideEffectsDetection
                         if (sym == NoSymbol)
                           "Reference with no symbol: " + tree
                         else
-                          "Reference to " + sym.fullName,// (local symbols: $localSymbols",
-                        SideEffectSeverity.Unsafe))
+                          "Reference to " + sym.fullName, // (local symbols: $localSymbols",
+                        SideEffectSeverity.Unsafe
+                      )
+                    )
                 }
               }
 
@@ -208,10 +207,10 @@ trait SideEffectsDetection
             }
 
           case Assign(_, _) | Function(_, _) |
-              TypeTree() | EmptyTree |
-              Literal(_) | Block(_, _) |
-              Match(_, _) | Typed(_, _) | This(_) |
-              (_: DefTree) =>
+            TypeTree() | EmptyTree |
+            Literal(_) | Block(_, _) |
+            Match(_, _) | Typed(_, _) | This(_) |
+            (_: DefTree) =>
             super.traverse(tree)
 
           case CaseDef(_, guard, body) =>

@@ -1,7 +1,6 @@
 package scalaxy.streams
 
-private[streams] trait OptionalSymbols extends Reporters
-{
+private[streams] trait OptionalSymbols extends Reporters {
   val global: scala.reflect.api.Universe
   import global._
 

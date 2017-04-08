@@ -6,8 +6,7 @@ private[streams] trait SetBuilderSinks extends BuilderSinks {
   val global: scala.reflect.api.Universe
   import global._
 
-  case object SetBuilderSink extends BuilderSink
-  {
+  case object SetBuilderSink extends BuilderSink {
     override def describe = Some("Set")
 
     override def usesSizeHint = false

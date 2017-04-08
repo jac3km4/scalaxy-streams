@@ -2,8 +2,7 @@ package scalaxy.streams
 
 private[streams] trait InlineSeqStreamSources
     extends ArrayStreamSources
-    with ListBufferSinks
-{
+    with ListBufferSinks {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -17,13 +16,15 @@ private[streams] trait InlineSeqStreamSources
         ArrayStreamSource(
           q"${ArrayModuleSym}.apply[$tpe](..$elements)",
           describe = Some("Seq"),
-          sinkOption = Some(ListBufferSink))
+          sinkOption = Some(ListBufferSink)
+        )
 
       case q"$list.apply[$tpe](..$elements)" if list.symbol == ListModuleSym =>
         ArrayStreamSource(
           q"${ArrayModuleSym}.apply[$tpe](..$elements)",
           describe = Some("List"),
-          sinkOption = Some(ListBufferSink))
+          sinkOption = Some(ListBufferSink)
+        )
     }
   }
 }

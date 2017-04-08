@@ -6,8 +6,7 @@ private[streams] trait ArrayBuilderSinks extends BuilderSinks {
   val global: scala.reflect.api.Universe
   import global._
 
-  case object ArrayBuilderSink extends BuilderSink
-  {
+  case object ArrayBuilderSink extends BuilderSink {
     override def describe = Some("Array")
 
     override def lambdaCount = 0
@@ -24,23 +23,23 @@ private[streams] trait ArrayBuilderSinks extends BuilderSinks {
     }
 
     override def emit(input: StreamInput, outputNeeds: OutputNeeds, nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input._
+      {
+        import input._
 
-      input.outputSize match {
-        case Some(outputSize) =>//if false => // buggy
-          // If the output size is known, just create an array.
-          // println(s"outputSize in ArraySink is ${input.outputSize}")
-          // new RuntimeException(s"outputSize in ArraySink is ${input.outputSize}").printStackTrace()
+        input.outputSize match {
+          case Some(outputSize) => //if false => // buggy
+            // If the output size is known, just create an array.
+            // println(s"outputSize in ArraySink is ${input.outputSize}")
+            // new RuntimeException(s"outputSize in ArraySink is ${input.outputSize}").printStackTrace()
 
-          require(input.vars.alias.nonEmpty, s"input.vars = $input.vars")
+            require(input.vars.alias.nonEmpty, s"input.vars = $input.vars")
 
-          val array = fresh("array")
-          val index = fresh("i")
+            val array = fresh("array")
+            val index = fresh("i")
 
-          val componentTpe = normalize(input.vars.tpe)
+            val componentTpe = normalize(input.vars.tpe)
 
-          val Block(List(
+            val Block(List(
               arrayDecl,
               arrayCreation,
               indexDef,
@@ -54,16 +53,17 @@ private[streams] trait ArrayBuilderSinks extends BuilderSinks {
             $array
           """)
 
-          StreamOutput(
-            prelude = List(arrayDecl),
-            beforeBody = List(arrayCreation, indexDef),
-            body = List(append, incr),
-            ending = List(arrayRef))
+            StreamOutput(
+              prelude = List(arrayDecl),
+              beforeBody = List(arrayCreation, indexDef),
+              body = List(append, incr),
+              ending = List(arrayRef)
+            )
 
-        // case None =>
-        case _ =>
-          super.emit(input, outputNeeds, nextOps)
+          // case None =>
+          case _ =>
+            super.emit(input, outputNeeds, nextOps)
+        }
       }
-    }
   }
 }

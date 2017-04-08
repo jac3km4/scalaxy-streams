@@ -10,8 +10,8 @@ trait TupleAnalysis
     extends TuploidValues
     with TreeBuilders
     with WithLocalContext {
-    // extends MiscMatchers
-    // with TreeBuilders {
+  // extends MiscMatchers
+  // with TreeBuilders {
   val global: reflect.api.Universe
 
   import global._
@@ -164,7 +164,7 @@ trait TupleAnalysis
       val rootTpe = baseSymbol.typeSignature
       val info = getTupleInfo(rootTpe)
       val flatPaths = info.flattenPaths
-      
+
       assert(sliceLength == 1)
       assert(sliceOffset < flatPaths.size, "slice offset = " + sliceOffset + ", flat paths = " + flatPaths)
 

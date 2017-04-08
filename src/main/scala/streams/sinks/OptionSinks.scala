@@ -4,8 +4,7 @@ private[streams] trait OptionSinks extends StreamComponents {
   val global: scala.reflect.api.Universe
   import global._
 
-  case object OptionSink extends StreamSink 
-  {
+  case object OptionSink extends StreamSink {
     override def lambdaCount = 0
 
     override def subTrees = Nil
@@ -13,16 +12,16 @@ private[streams] trait OptionSinks extends StreamComponents {
     override def describe = Some("Option")
 
     override def emit(input: StreamInput, outputNeeds: OutputNeeds, nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input._
+      {
+        import input._
 
-      requireSinkInput(input, outputNeeds, nextOps)
+        requireSinkInput(input, outputNeeds, nextOps)
 
-      val value = fresh("value")
-      val nonEmpty = fresh("nonEmpty")
-      require(input.vars.alias.nonEmpty, s"input.vars = $input.vars")
+        val value = fresh("value")
+        val nonEmpty = fresh("nonEmpty")
+        require(input.vars.alias.nonEmpty, s"input.vars = $input.vars")
 
-      val Block(List(
+        val Block(List(
           valueDef,
           nonEmptyDef,
           assignment), result) = typed(q"""
@@ -35,15 +34,15 @@ private[streams] trait OptionSinks extends StreamComponents {
         if ($nonEmpty) Some($value) else None
       """)
 
-      StreamOutput(
-        prelude = List(valueDef, nonEmptyDef),
-        body = List(assignment),
-        ending = List(result))
-    }
+        StreamOutput(
+          prelude = List(valueDef, nonEmptyDef),
+          body = List(assignment),
+          ending = List(result)
+        )
+      }
   }
 
-  case class StagedOptionSink(valueSymbol: Symbol, nonEmptySymbol: Symbol) extends StreamSink 
-  {
+  case class StagedOptionSink(valueSymbol: Symbol, nonEmptySymbol: Symbol) extends StreamSink {
     override def lambdaCount = 0
 
     override def subTrees = Nil
@@ -51,17 +50,17 @@ private[streams] trait OptionSinks extends StreamComponents {
     override def describe = Some("Option")
 
     override def emit(input: StreamInput, outputNeeds: OutputNeeds, nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input._
+      {
+        import input._
 
-      requireSinkInput(input, outputNeeds, nextOps)
+        requireSinkInput(input, outputNeeds, nextOps)
 
-      StreamOutput(
-        body = List(typed(q"""{
+        StreamOutput(
+          body = List(typed(q"""{
           ${valueSymbol} = ${input.vars.alias.get};
           ${nonEmptySymbol} = true;
         }"""))
-      )
-    }
+        )
+      }
   }
 }

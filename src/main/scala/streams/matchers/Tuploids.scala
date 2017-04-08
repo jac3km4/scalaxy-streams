@@ -45,7 +45,6 @@ trait Tuploids { //extends CommonScalaNames {
     }
   }
 
-
   def isTupleType(tpe: Type): Boolean =
     Option(tpe).exists(t => isTupleSymbol(t.typeSymbol))
 

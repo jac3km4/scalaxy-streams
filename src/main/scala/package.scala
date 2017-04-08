@@ -16,19 +16,17 @@ package object streams {
   def optimize[A](a: A): A = macro impl.recursivelyOptimize[A]
 }
 
-package streams
-{
-  object impl
-  {
-    def recursivelyOptimize[A : c.WeakTypeTag](c: Context)(a: c.Expr[A]): c.Expr[A] = {
+package streams {
+  object impl {
+    def recursivelyOptimize[A: c.WeakTypeTag](c: Context)(a: c.Expr[A]): c.Expr[A] = {
       optimize[A](c)(a, recurse = true)
     }
 
-    def optimizeTopLevelStream[A : c.WeakTypeTag](c: Context)(a: c.Expr[A]): c.Expr[A] = {
+    def optimizeTopLevelStream[A: c.WeakTypeTag](c: Context)(a: c.Expr[A]): c.Expr[A] = {
       optimize[A](c)(a, recurse = false)
     }
 
-    private[streams] def optimize[A : c.WeakTypeTag](c: Context)(a: c.Expr[A], recurse: Boolean): c.Expr[A] = {
+    private[streams] def optimize[A: c.WeakTypeTag](c: Context)(a: c.Expr[A], recurse: Boolean): c.Expr[A] = {
 
       if (flags.disabled) {
         a
@@ -65,7 +63,8 @@ package streams
                   fresh = c.freshName(_),
                   currentOwner = cast(api.currentOwner),
                   recur = apiRecur,
-                  typecheck = apiTypecheck)
+                  typecheck = apiTypecheck
+                )
 
               val result = opt(tree).getOrElse {
                 if (recurse) {

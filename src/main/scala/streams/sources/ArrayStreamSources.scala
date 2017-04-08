@@ -2,8 +2,7 @@ package scalaxy.streams
 
 private[streams] trait ArrayStreamSources
     extends ArrayBuilderSinks
-    with StreamInterruptors
-{
+    with StreamInterruptors {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -19,32 +18,34 @@ private[streams] trait ArrayStreamSources
   }
 
   case class ArrayStreamSource(
-      array: Tree,
-      describe: Option[String] = Some("Array"),
-      sinkOption: Option[StreamSink] = Some(ArrayBuilderSink))
-    extends StreamSource
-  {
+    array: Tree,
+    describe: Option[String] = Some("Array"),
+    sinkOption: Option[StreamSink] = Some(ArrayBuilderSink)
+  )
+      extends StreamSource {
     override def lambdaCount = 0
     override def subTrees = List(array)
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input.{ fresh, transform, typed }
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        import input.{ fresh, transform, typed }
 
-      val arrayVal = fresh("array")
-      val lengthVal = fresh("length")
-      val iVar = fresh("i")
-      val itemVal = fresh("item")
+        val arrayVal = fresh("array")
+        val lengthVal = fresh("length")
+        val iVar = fresh("i")
+        val itemVal = fresh("item")
 
-      val arrayTpe = findType(array).orNull
-      // getOrElse {
-      //   sys.error(s"Failed to find type of $array")
-      // }
+        val arrayTpe = findType(array).orNull
+        // getOrElse {
+        //   sys.error(s"Failed to find type of $array")
+        // }
 
-      // Early typing / symbolization.
-      val Block(List(
+        // Early typing / symbolization.
+        val Block(List(
           arrayValDef,
           lengthValDef,
           iVarDef,
@@ -58,24 +59,27 @@ private[streams] trait ArrayStreamSources
         ($lengthVal, $iVar, $itemVal)
       """)
 
-      val TuploidPathsExtractionDecls(extractionCode, outputVars, coercionSuccessVarDefRef) =
-        createTuploidPathsExtractionDecls(
-          itemValRef.tpe, itemValRef, outputNeeds, fresh, typed,
-          newCoercionSuccessVarDefRef(nextOps, fresh, typed))
+        val TuploidPathsExtractionDecls(extractionCode, outputVars, coercionSuccessVarDefRef) =
+          createTuploidPathsExtractionDecls(
+            itemValRef.tpe, itemValRef, outputNeeds, fresh, typed,
+            newCoercionSuccessVarDefRef(nextOps, fresh, typed)
+          )
 
-      val interruptor = new StreamInterruptor(input, nextOps)
+        val interruptor = new StreamInterruptor(input, nextOps)
 
-      val sub = emitSub(
-        input.copy(
-          vars = outputVars,
-          loopInterruptor = interruptor.loopInterruptor,
-          outputSize = Some(lengthValRef)),
-        nextOps,
-        coercionSuccessVarDefRef._2)
+        val sub = emitSub(
+          input.copy(
+            vars = outputVars,
+            loopInterruptor = interruptor.loopInterruptor,
+            outputSize = Some(lengthValRef)
+          ),
+          nextOps,
+          coercionSuccessVarDefRef._2
+        )
 
-      sub.copy(
-        beforeBody = Nil,
-        body = List(typed(q"""
+        sub.copy(
+          beforeBody = Nil,
+          body = List(typed(q"""
           $arrayValDef;
           $lengthValDef;
           $iVarDef;
@@ -89,8 +93,8 @@ private[streams] trait ArrayStreamSources
           }
           ..${sub.afterBody}
         """)),
-        afterBody = Nil
-      )
-    }
+          afterBody = Nil
+        )
+      }
   }
 }

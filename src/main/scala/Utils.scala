@@ -54,19 +54,21 @@ trait Utils {
   private[streams] def trySome[T](v: => T): Option[T] =
     try {
       Some(v)
-    } catch { case ex: Throwable =>
-      if (flags.debug)
-        ex.printStackTrace()
-      None
+    } catch {
+      case ex: Throwable =>
+        if (flags.debug)
+          ex.printStackTrace()
+        None
     }
 
   private[streams] def tryOrNone[T](v: => Option[T]): Option[T] =
     try {
       v
-    } catch { case ex: Throwable =>
-      if (flags.debug)
-        ex.printStackTrace()
-      None
+    } catch {
+      case ex: Throwable =>
+        if (flags.debug)
+          ex.printStackTrace()
+        None
     }
 
   private[streams] def dummyStatement(fresh: String => TermName) =

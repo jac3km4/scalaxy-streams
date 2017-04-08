@@ -6,12 +6,11 @@ private[streams] trait VectorBuilderSinks extends BuilderSinks {
   val global: scala.reflect.api.Universe
   import global._
 
-  case object VectorBuilderSink extends BuilderSink
-  {
+  case object VectorBuilderSink extends BuilderSink {
     override def describe = Some("Vector")
 
     override def lambdaCount = 0
-    
+
     override def subTrees = Nil
 
     override def usesSizeHint = false

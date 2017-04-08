@@ -32,33 +32,33 @@ object StreamsCompiler {
   def defaultInternalPhasesGetter: Global => List[PluginComponent] =
     StreamsPlugin.getInternalPhases _
 
-  def makeCompiler[R <: Reporter]
-                  (reporterGetter: Settings => R,
-                   internalPhasesGetter: Global => List[PluginComponent] = defaultInternalPhasesGetter)
-                  : (Array[String] => Unit) =
-  {
-    val settings = new Settings
+  def makeCompiler[R <: Reporter](
+    reporterGetter: Settings => R,
+    internalPhasesGetter: Global => List[PluginComponent] = defaultInternalPhasesGetter
+  ): (Array[String] => Unit) =
+    {
+      val settings = new Settings
 
-    val jars = scalaLibraryJar ++ streamsLibraryJar
-    val bootclasspathArg = if (jars.isEmpty) Nil else List("-bootclasspath", jars.reduce(_ + ":" + _))
-    
-    val reporter = reporterGetter(settings)
-    val global = new Global(settings, reporter) {
-      override protected def computeInternalPhases() {
-        super.computeInternalPhases
-        phasesSet ++= internalPhasesGetter(this)
+      val jars = scalaLibraryJar ++ streamsLibraryJar
+      val bootclasspathArg = if (jars.isEmpty) Nil else List("-bootclasspath", jars.reduce(_ + ":" + _))
+
+      val reporter = reporterGetter(settings)
+      val global = new Global(settings, reporter) {
+        override protected def computeInternalPhases() {
+          super.computeInternalPhases
+          phasesSet ++= internalPhasesGetter(this)
+        }
+      }
+
+      (args: Array[String]) => {
+        val command = new CompilerCommand(bootclasspathArg ++ args, settings)
+
+        if (!command.ok)
+          System.exit(1)
+
+        new global.Run().compile(command.files)
       }
     }
-
-    (args: Array[String]) => {
-      val command = new CompilerCommand(bootclasspathArg ++ args, settings)
-
-      if (!command.ok)
-        System.exit(1)
-
-      new global.Run().compile(command.files)
-    }
-  }
 
   // def compile[R <: Reporter](args: Array[String],
   //     reporterGetter: Settings => R,

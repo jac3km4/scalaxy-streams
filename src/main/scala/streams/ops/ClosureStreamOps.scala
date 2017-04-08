@@ -2,8 +2,7 @@ package scalaxy.streams
 
 private[streams] trait ClosureStreamOps
     extends StreamComponents
-    with TransformationClosures
-{
+    with TransformationClosures {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -25,8 +24,8 @@ private[streams] trait ClosureStreamOps
     lazy val body = stripBody(body_)
     def stripBody(tree: Tree): Tree = tree
 
-    lazy val SomeTransformationClosure(transformationClosure) = closure// q"($param) => $body"
-    
+    lazy val SomeTransformationClosure(transformationClosure) = closure // q"($param) => $body"
+
     override def transmitOutputNeedsBackwards(paths: Set[TuploidPath]) =
       transformationClosure.getPreviousReferencedPaths(paths, isMapLike = isMapLike)
   }

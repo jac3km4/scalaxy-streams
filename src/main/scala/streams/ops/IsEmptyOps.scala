@@ -1,8 +1,7 @@
 package scalaxy.streams
 
 private[streams] trait IsEmptyOps
-    extends UnusableSinks
-{
+    extends UnusableSinks {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -32,18 +31,20 @@ private[streams] trait IsEmptyOps
     override def transmitOutputNeedsBackwards(paths: Set[TuploidPath]) =
       Set() // TODO: check this.
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      val List((ScalarSink, _)) = nextOps
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        val List((ScalarSink, _)) = nextOps
 
-      import input.{ typed, fresh }
+        import input.{ typed, fresh }
 
-      val isEmpty = fresh("isEmpty")
+        val isEmpty = fresh("isEmpty")
 
-      // Force typing of declarations and get typed references to various vars and vals.
-      val Block(List(
+        // Force typing of declarations and get typed references to various vars and vals.
+        val Block(List(
           isEmptyVarDef,
           isEmptyIsFalse), result) = typed(q"""
         private[this] var $isEmpty = true;
@@ -51,13 +52,14 @@ private[streams] trait IsEmptyOps
         ${if (isPositivelyEmpty) q"$isEmpty" else q"!$isEmpty"}
       """)
 
-      StreamOutput(
-        prelude = List(isEmptyVarDef),
-        body = List(q"""
+        StreamOutput(
+          prelude = List(isEmptyVarDef),
+          body = List(q"""
           $isEmptyIsFalse;
           ${input.loopInterruptor.get.duplicate} = false;
         """),
-        ending = List(result))
-    }
+          ending = List(result)
+        )
+      }
   }
 }

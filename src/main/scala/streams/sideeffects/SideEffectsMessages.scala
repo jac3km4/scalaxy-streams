@@ -1,8 +1,7 @@
 package scalaxy.streams
 import scala.reflect.NameTransformer
 
-private[streams] trait SideEffectsMessages
-{
+private[streams] trait SideEffectsMessages {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -31,7 +30,7 @@ private[streams] trait SideEffectsMessages
     "*" -> aritMessage,
     "++" -> s"Collection composition is $assumedSideEffectFreeMessageSuffix",
     "--" -> s"Collection composition is $assumedSideEffectFreeMessageSuffix"
-    // "canBuildFrom" -> s"CanBuildFrom's are $assumedSideEffectFreeMessageSuffix",
-    // "zipWithIndex" -> s"zipWithIndex is $assumedSideEffectFreeMessageSuffix"
+  // "canBuildFrom" -> s"CanBuildFrom's are $assumedSideEffectFreeMessageSuffix",
+  // "zipWithIndex" -> s"zipWithIndex is $assumedSideEffectFreeMessageSuffix"
   ))
 }

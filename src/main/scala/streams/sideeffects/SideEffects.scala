@@ -6,7 +6,8 @@ import scala.collection.mutable.ListBuffer
 
 private[streams] sealed class SideEffectSeverity(
   private val level: Int,
-  val description: String)
+  val description: String
+)
     extends Comparable[SideEffectSeverity] {
   override def compareTo(s: SideEffectSeverity) = level.compareTo(s.level)
 }
@@ -35,8 +36,7 @@ private[streams] object SideEffectSeverity {
   case object Unsafe extends SideEffectSeverity(3, "unsafe")
 }
 
-private[streams] trait SideEffects
-{
+private[streams] trait SideEffects {
   val global: scala.reflect.api.Universe
   import global._
 

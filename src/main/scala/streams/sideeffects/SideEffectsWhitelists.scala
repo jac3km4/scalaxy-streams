@@ -8,12 +8,12 @@ private[streams] object SideEffectsWhitelists {
 
   lazy val whitelistedSymbols: Set[String] =
     whitelistedPackages ++
-    whitelistedClasses ++
-    whitelistedMethods ++
-    whitelistedConstructors ++
-    whitelistedPredefSymbols ++
-    whitelistedRuntimeSymbols ++
-    whitelistedModuleReferences
+      whitelistedClasses ++
+      whitelistedMethods ++
+      whitelistedConstructors ++
+      whitelistedPredefSymbols ++
+      whitelistedRuntimeSymbols ++
+      whitelistedModuleReferences
 
   /**
    * Any symbol under this package will be whitelisted!!!

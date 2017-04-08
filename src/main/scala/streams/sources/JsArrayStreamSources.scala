@@ -4,8 +4,7 @@ private[streams] trait JsArrayStreamSources
     extends ArrayStreamSources
     with JsArrayBuilderSinks
     with StreamInterruptors
-    with ScalaJsSymbols
-{
+    with ScalaJsSymbols {
   val global: scala.reflect.api.Universe
   import global._
 

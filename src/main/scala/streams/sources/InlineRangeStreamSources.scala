@@ -4,13 +4,11 @@ import scala.reflect.NameTransformer.{ encode, decode }
 private[streams] trait InlineRangeStreamSources
     extends StreamComponents
     with VectorBuilderSinks
-    with StreamInterruptors
-{
+    with StreamInterruptors {
   val global: scala.reflect.api.Universe
   import global._
 
-  private[this] object ToUntil
-  {
+  private[this] object ToUntil {
     def apply(isInclusive: Boolean) = ???
     def unapply(name: Name): Option[Boolean] = if (name == null) None else name.toString match {
       case "to" => Some(true)
@@ -19,19 +17,18 @@ private[streams] trait InlineRangeStreamSources
     }
   }
 
-  object SomeInlineRangeStreamSource
-  {
+  object SomeInlineRangeStreamSource {
     def unapply(tree: Tree): Option[InlineRangeStreamSource[_]] = Option(tree) collect {
-      case q"${Predef()}.intWrapper($start) ${ToUntil(isInclusive)} $end" =>
+      case q"${ Predef() }.intWrapper($start) ${ ToUntil(isInclusive) } $end" =>
         InlineRangeStreamSource[Int](start, end, by = 1, isInclusive, tpe = typeOf[Int])
 
-      case q"${Predef()}.intWrapper($start) ${ToUntil(isInclusive)} $end by ${Literal(Constant(by: Int))}" =>
+      case q"${ Predef() }.intWrapper($start) ${ ToUntil(isInclusive) } $end by ${ Literal(Constant(by: Int)) }" =>
         InlineRangeStreamSource[Int](start, end, by, isInclusive, tpe = typeOf[Int])
 
-      case q"${Predef()}.longWrapper($start) ${ToUntil(isInclusive)} $end" =>
+      case q"${ Predef() }.longWrapper($start) ${ ToUntil(isInclusive) } $end" =>
         InlineRangeStreamSource[Long](start, end, by = 1, isInclusive, tpe = typeOf[Long])
 
-      case q"${Predef()}.longWrapper($start) ${ToUntil(isInclusive)} $end by ${Literal(Constant(by: Long))}" =>
+      case q"${ Predef() }.longWrapper($start) ${ ToUntil(isInclusive) } $end by ${ Literal(Constant(by: Long)) }" =>
         InlineRangeStreamSource[Long](start, end, by, isInclusive, tpe = typeOf[Long])
     }
   }
@@ -43,10 +40,8 @@ private[streams] trait InlineRangeStreamSources
     }
   }
 
-  case class InlineRangeStreamSource[T : Numeric : Liftable]
-    (start: Tree, end: Tree, by: T, isInclusive: Boolean, tpe: Type)
-      extends StreamSource
-  {
+  case class InlineRangeStreamSource[T: Numeric: Liftable](start: Tree, end: Tree, by: T, isInclusive: Boolean, tpe: Type)
+      extends StreamSource {
     override def describe = Some("Range")
 
     override def lambdaCount = 0
@@ -55,50 +50,52 @@ private[streams] trait InlineRangeStreamSources
 
     override def sinkOption = Some(VectorBuilderSink)
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      import input.{ fresh, transform, typed }
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        import input.{ fresh, transform, typed }
 
-      val startVal = fresh("start")
-      val endVal = fresh("end")
-      val iVar = fresh("i")
-      val iVal = fresh("iVal")
-      val size = fresh("size")
-      val gap = fresh("gap")
+        val startVal = fresh("start")
+        val endVal = fresh("end")
+        val iVar = fresh("i")
+        val iVal = fresh("iVal")
+        val size = fresh("size")
+        val gap = fresh("gap")
 
-      val testOperator = TermName(
-        encode(
-          if (implicitly[Numeric[T]].signum(by) > 0) {
-            if (isInclusive) "<=" else "<"
-          } else {
-            if (isInclusive) ">=" else ">"
-          }
+        val testOperator = TermName(
+          encode(
+            if (implicitly[Numeric[T]].signum(by) > 0) {
+              if (isInclusive) "<=" else "<"
+            } else {
+              if (isInclusive) ">=" else ">"
+            }
+          )
         )
-      )
 
-      def divideTree(lhs: Tree, rhs: Tree) = rhs match {
-        case q"1" => lhs
-        case _ => q"$lhs / $rhs"
-      }
+        def divideTree(lhs: Tree, rhs: Tree) = rhs match {
+          case q"1" => lhs
+          case _ => q"$lhs / $rhs"
+        }
 
-      def ifTree(condition: Tree, thenTree: Tree, otherwiseTree: Tree) = condition match {
-        case q"true" => thenTree
-        case q"false" => otherwiseTree
-        case _ => q"if ($condition) $thenTree else $otherwiseTree"
-      }
+        def ifTree(condition: Tree, thenTree: Tree, otherwiseTree: Tree) = condition match {
+          case q"true" => thenTree
+          case q"false" => otherwiseTree
+          case _ => q"if ($condition) $thenTree else $otherwiseTree"
+        }
 
-      val hasStubTree =
-        if (isInclusive)
-          q"true"
-        else if (by == 1)
-          q"false"
-        else
-          q"!($gap % $by == 0)"
+        val hasStubTree =
+          if (isInclusive)
+            q"true"
+          else if (by == 1)
+            q"false"
+          else
+            q"!($gap % $by == 0)"
 
-      // Force typing of declarations and get typed references to various vars and vals.
-      val b @ Block(List(
+        // Force typing of declarations and get typed references to various vars and vals.
+        val b @ Block(List(
           startValDef,
           endValDef,
           iVarDef,
@@ -119,21 +116,23 @@ private[streams] trait InlineRangeStreamSources
         ($size, $iVal, $iVar, $iVar $testOperator $endVal)
       """)
 
-      val outputVars = ScalarValue[Tree](tpe = tpe, alias = Some(iValRef))
+        val outputVars = ScalarValue[Tree](tpe = tpe, alias = Some(iValRef))
 
-      val interruptor = new StreamInterruptor(input, nextOps)
+        val interruptor = new StreamInterruptor(input, nextOps)
 
-      val needsSize = !nextOps.exists(_._1.canAlterSize)
-      val sub = emitSub(
-        input.copy(
-          vars = outputVars,
-          outputSize = if (needsSize) Some(sizeRef) else None,
-          loopInterruptor = interruptor.loopInterruptor),
-        nextOps)
+        val needsSize = !nextOps.exists(_._1.canAlterSize)
+        val sub = emitSub(
+          input.copy(
+            vars = outputVars,
+            outputSize = if (needsSize) Some(sizeRef) else None,
+            loopInterruptor = interruptor.loopInterruptor
+          ),
+          nextOps
+        )
 
-      sub.copy(
-        beforeBody = Nil,
-        body = List(typed(q"""
+        sub.copy(
+          beforeBody = Nil,
+          body = List(typed(q"""
           $startValDef;
           $endValDef;
           $iVarDef;
@@ -146,7 +145,7 @@ private[streams] trait InlineRangeStreamSources
             $iVarIncr
           }
         """))
-      )
-    }
+        )
+      }
   }
 }

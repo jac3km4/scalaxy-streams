@@ -5,8 +5,7 @@ private[streams] trait ToCollectionOps
     with ArrayBuilderSinks
     with IteratorSinks
     with ListBufferSinks
-    with VectorBuilderSinks
-{
+    with VectorBuilderSinks {
   val global: scala.reflect.api.Universe
   import global._
 
@@ -21,7 +20,7 @@ private[streams] trait ToCollectionOps
       case q"$target.toVector" =>
         ExtractedStreamOp(target, ToVectorOp)
 
-      case q"$target.toArray[${_}](${_})" =>
+      case q"$target.toArray[${ _ }](${ _ })" =>
         ExtractedStreamOp(target, ToArrayOp)
 
       case _ =>

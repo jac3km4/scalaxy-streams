@@ -11,8 +11,8 @@ private[streams] trait StreamResults extends TuploidValues {
       beforeBody: List[Tree] = Nil,
       body: List[Tree] = Nil,
       afterBody: List[Tree] = Nil,
-      ending: List[Tree] = Nil)
-  {
+      ending: List[Tree] = Nil
+  ) {
     // val flatten: List[Tree] = {
     //   val b = collection.mutable.ListBuffer[Tree]()
     //   for (list <- List(prelude, beforeBody, body, afterBody);
@@ -46,7 +46,8 @@ private[streams] trait StreamResults extends TuploidValues {
         beforeBody = beforeBody.map(f),
         body = body.map(f),
         afterBody = afterBody.map(f),
-        ending = ending.map(f))
+        ending = ending.map(f)
+      )
   }
 
   val NoStreamOutput = StreamOutput()
@@ -59,5 +60,6 @@ private[streams] trait StreamResults extends TuploidValues {
     fresh: String => TermName,
     transform: Tree => Tree,
     currentOwner: Symbol,
-    typed: Tree => Tree)
+    typed: Tree => Tree
+  )
 }

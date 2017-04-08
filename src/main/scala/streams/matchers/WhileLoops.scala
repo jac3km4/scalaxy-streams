@@ -1,8 +1,7 @@
 package scalaxy.streams
 import scala.reflect.NameTransformer.{ encode, decode }
 
-trait WhileLoops
-{
+trait WhileLoops {
   val global: scala.reflect.api.Universe
   import global._
 

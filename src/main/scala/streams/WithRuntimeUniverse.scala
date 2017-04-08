@@ -76,7 +76,8 @@ trait WithRuntimeUniverse
       try {
         toolbox.typecheck(
           ttree,
-          pt = pt.asInstanceOf[toolbox.u.Type])
+          pt = pt.asInstanceOf[toolbox.u.Type]
+        )
       } catch {
         case ex: Throwable =>
           throw new RuntimeException(s"Failed to typeCheck($tree, $pt): $ex", ex)

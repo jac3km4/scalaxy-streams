@@ -2,8 +2,7 @@ package scalaxy.streams
 
 private[streams] trait JsArrayOpsOps
     extends StreamComponents
-    with ScalaJsSymbols
-{
+    with ScalaJsSymbols {
   val global: scala.reflect.api.Universe
   import global._
 

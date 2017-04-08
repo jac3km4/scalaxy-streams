@@ -4,14 +4,13 @@ private[streams] trait CountOps
     extends ClosureStreamOps
     with Strippers
     with OptionSinks
-    with UnusableSinks
-{
+    with UnusableSinks {
   val global: scala.reflect.api.Universe
   import global._
 
   object SomeCountOp extends StreamOpExtractor {
     override def unapply(tree: Tree) = tree match {
-      case q"$target.count(${Closure(closure)})" =>
+      case q"$target.count(${ Closure(closure) })" =>
         ExtractedStreamOp(target, CountOp(closure))
 
       case _ =>
@@ -26,25 +25,28 @@ private[streams] trait CountOps
     override def describe = Some("count")
     override def sinkOption = Some(ScalarSink)
 
-    override def emit(input: StreamInput,
-                      outputNeeds: OutputNeeds,
-                      nextOps: OpsAndOutputNeeds): StreamOutput =
-    {
-      val List((ScalarSink, _)) = nextOps
+    override def emit(
+      input: StreamInput,
+      outputNeeds: OutputNeeds,
+      nextOps: OpsAndOutputNeeds
+    ): StreamOutput =
+      {
+        val List((ScalarSink, _)) = nextOps
 
-      import input.{ typed, fresh }
+        import input.{ typed, fresh }
 
-      val (replacedStatements, outputVars) =
-        transformationClosure.replaceClosureBody(
-          input,
-          outputNeeds + RootTuploidPath)
+        val (replacedStatements, outputVars) =
+          transformationClosure.replaceClosureBody(
+            input,
+            outputNeeds + RootTuploidPath
+          )
 
-      var test = outputVars.alias.get
+        var test = outputVars.alias.get
 
-      val count = fresh("count")
+        val count = fresh("count")
 
-      // Force typing of declarations and get typed references to various vars and vals.
-      val Block(List(
+        // Force typing of declarations and get typed references to various vars and vals.
+        val Block(List(
           countVarDef,
           countIncr), countVarRef) = typed(q"""
         private[this] var $count = 0;
@@ -52,15 +54,16 @@ private[streams] trait CountOps
         $count
       """)
 
-      StreamOutput(
-        prelude = List(countVarDef),
-        body = List(q"""
+        StreamOutput(
+          prelude = List(countVarDef),
+          body = List(q"""
           ..$replacedStatements;
           if ($test) {
             $countIncr;
           }
         """),
-        ending = List(countVarRef))
-    }
+          ending = List(countVarRef)
+        )
+      }
   }
 }
